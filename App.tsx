@@ -1,6 +1,6 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
-import { GameState, Card, GameMode, ActionResponse } from './types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { GameState, Card, GameMode, ActionResponse, GameStats, SessionStats } from './types';
 import { createDeck } from './constants';
 import HUD from './components/HUD';
 import Room from './components/Room';
@@ -9,6 +9,31 @@ import Toast from './components/Toast';
 
 const INITIAL_HEALTH = 20;
 const POTION_HEAL = 7;
+const STATS_KEY = "scoundrel_react_stats_v1";
+
+const INITIAL_SESSION_STATS: SessionStats = {
+  roomsReached: 1,
+  enemiesDefeated: 0,
+  damageTaken: 0,
+  healingDone: 0,
+  potionsUsed: 0,
+  runsUsed: 0,
+  weaponsEquipped: 0,
+};
+
+const INITIAL_GLOBAL_STATS: GameStats = {
+  totalGames: 0,
+  wins: 0,
+  losses: 0,
+  totalRoomsCleared: 0,
+  totalEnemiesDefeated: 0,
+  totalDamageTaken: 0,
+  totalHealingDone: 0,
+  totalPotionsUsed: 0,
+  totalRunsUsed: 0,
+  totalWeaponsEquipped: 0,
+  bestRun: { rooms: 0, enemies: 0 },
+};
 
 interface FloatingText {
   id: number;
@@ -16,6 +41,7 @@ interface FloatingText {
   type: 'damage' | 'heal' | 'action' | 'equip';
   x: number;
   y: number;
+  isUnarmed?: boolean;
 }
 
 interface Explosion {
@@ -40,13 +66,31 @@ const App: React.FC = () => {
     fugaUsataUltimaStanza: false,
     roomIndex: 0,
     enemiesDefeated: 0,
+    sessionStats: { ...INITIAL_SESSION_STATS },
   });
 
+  const [globalStats, setGlobalStats] = useState<GameStats>(INITIAL_GLOBAL_STATS);
   const [toasts, setToasts] = useState<{id: number, message: string, kind: string}[]>([]);
   const [showRules, setShowRules] = useState(false);
+  const [showStats, setShowStats] = useState(false);
   const [visualEffect, setVisualEffect] = useState<string | null>(null);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [explosions, setExplosions] = useState<Explosion[]>([]);
+
+  // Load global stats
+  useEffect(() => {
+    const saved = localStorage.getItem(STATS_KEY);
+    if (saved) {
+      setGlobalStats(JSON.parse(saved));
+    }
+  }, []);
+
+  // Save global stats
+  useEffect(() => {
+    if (globalStats.totalGames > 0) {
+      localStorage.setItem(STATS_KEY, JSON.stringify(globalStats));
+    }
+  }, [globalStats]);
 
   const addToast = (message: string, kind: string = "info") => {
     const id = Date.now();
@@ -56,11 +100,11 @@ const App: React.FC = () => {
     }, 3000);
   };
 
-  const addFloatingText = (text: string, type: 'damage' | 'heal' | 'action' | 'equip') => {
+  const addFloatingText = (text: string, type: 'damage' | 'heal' | 'action' | 'equip', isUnarmed: boolean = false) => {
     const id = Date.now() + Math.random();
     const x = 40 + Math.random() * 20; 
     const y = 40 + Math.random() * 20; 
-    setFloatingTexts(prev => [...prev, { id, text, type, x, y }]);
+    setFloatingTexts(prev => [...prev, { id, text, type, x, y, isUnarmed }]);
     setTimeout(() => {
       setFloatingTexts(prev => prev.filter(ft => ft.id !== id));
     }, 1200);
@@ -76,7 +120,60 @@ const App: React.FC = () => {
 
   const triggerEffect = (effect: string) => {
     setVisualEffect(effect);
-    setTimeout(() => setVisualEffect(null), 700);
+    setTimeout(() => setVisualEffect(null), 800);
+  };
+
+  const updateGlobalStats = (result: "won" | "lost", session: SessionStats) => {
+    setGlobalStats(prev => {
+      const next = { ...prev };
+      next.totalGames += 1;
+      if (result === "won") next.wins += 1;
+      else next.losses += 1;
+
+      next.totalRoomsCleared += session.roomsReached;
+      next.totalEnemiesDefeated += session.enemiesDefeated;
+      next.totalDamageTaken += session.damageTaken;
+      next.totalHealingDone += session.healingDone;
+      next.totalPotionsUsed += session.potionsUsed;
+      next.totalRunsUsed += session.runsUsed;
+      next.totalWeaponsEquipped += session.weaponsEquipped;
+
+      if (session.roomsReached > next.bestRun.rooms) next.bestRun.rooms = session.roomsReached;
+      if (session.enemiesDefeated > next.bestRun.enemies) next.bestRun.enemies = session.enemiesDefeated;
+
+      return next;
+    });
+  };
+
+  const checkRoomTransition = (currentState: GameState): GameState => {
+    let next = { ...currentState };
+    
+    if (next.room.length === 1) {
+      const carryCard = next.room[0];
+      const newCards = next.deck.splice(0, 3);
+      
+      if (newCards.length > 0) {
+        next.room = [carryCard, ...newCards];
+        next.roomIndex += 1;
+        next.sessionStats.roomsReached += 1;
+        next.fugaDisponibile = true;
+        next.selectedCardId = null;
+        addToast("Carry-over: 1 vecchia carta + 3 nuove.", "success");
+      }
+    } else if (next.room.length === 0) {
+      const newCards = next.deck.splice(0, 4);
+      if (newCards.length === 0) {
+        next.status = "won";
+        updateGlobalStats("won", next.sessionStats);
+      } else {
+        next.room = newCards;
+        next.roomIndex += 1;
+        next.sessionStats.roomsReached += 1;
+        next.fugaDisponibile = true;
+      }
+    }
+
+    return next;
   };
 
   const startNewGame = (mode: GameMode) => {
@@ -96,232 +193,239 @@ const App: React.FC = () => {
       fugaUsataUltimaStanza: false,
       roomIndex: 1,
       enemiesDefeated: 0,
+      sessionStats: { ...INITIAL_SESSION_STATS },
     });
-    addToast(`Partita iniziata: ${mode.toUpperCase()}`, "success");
-  };
-
-  const startNextRoom = useCallback(() => {
-    setGameState(prev => {
-      if (prev.deck.length === 0 && prev.room.length < 2) {
-        return { ...prev, room: [], status: "won" };
-      }
-      
-      const newDeck = [...prev.deck];
-      if (newDeck.length === 0 && prev.room.length >= 2) return prev;
-
-      const numToDraw = Math.min(newDeck.length, 4);
-      const newRoom = newDeck.splice(0, numToDraw);
-      
-      if (newRoom.length === 0) {
-          return { ...prev, room: [], status: "won" };
-      }
-
-      const canFleeNow = !prev.fugaUsataUltimaStanza;
-
-      return {
-        ...prev,
-        deck: newDeck,
-        room: newRoom,
-        roomIndex: prev.roomIndex + 1,
-        fugaDisponibile: canFleeNow,
-        fugaUsataUltimaStanza: false, 
-        selectedCardId: null
-      };
-    });
-  }, []);
-
-  const selectCard = (id: string) => {
-    setGameState(prev => ({ ...prev, selectedCardId: id === prev.selectedCardId ? null : id }));
+    addToast(`Dungeon generato (${mode.toUpperCase()})`, "success");
   };
 
   const validateAction = (actionType: string): ActionResponse => {
-    const { selectedCardId, room, equippedWeapon, potions, health, fugaDisponibile, mode } = gameState;
+    const { selectedCardId, room, equippedWeapon, potions, health, fugaDisponibile } = gameState;
     const selectedCard = room.find(c => c.id === selectedCardId);
 
-    if (room.length < 2 && actionType !== "FUGA" && actionType !== "POTION_STOCK") {
-        return { ok: false, severity: "block", message: "La quarta carta viene scartata automaticamente!" };
-    }
-
     if (actionType === "FUGA") {
-      if (!fugaDisponibile) return { ok: false, severity: "block", message: "Ritirata non disponibile (Cooldown)!" };
+      if (!fugaDisponibile) return { ok: false, severity: "block", message: "Non puoi fuggire da due stanze consecutive!" };
       return { ok: true, severity: "success", message: "Ti stai ritirando..." };
     }
 
     if (actionType === "POTION_STOCK") {
-      if (potions <= 0) return { ok: false, severity: "block", message: "Non hai più pozioni scorta!" };
-      if (health >= 20) return { ok: false, severity: "warn", message: "Vita già al massimo!" };
+      if (potions <= 0) return { ok: false, severity: "block", message: "Scorte esaurite!" };
+      if (health >= 20) return { ok: false, severity: "warn", message: "Salute massima!" };
       return { ok: true, severity: "success", message: "Pozione usata!" };
     }
 
-    if (!selectedCardId) return { ok: false, severity: "block", message: "Seleziona prima una carta!" };
-    if (!selectedCard) return { ok: false, severity: "block", message: "Errore selezione carta." };
+    if (!selectedCardId) return { ok: false, severity: "block", message: "Seleziona una carta!" };
 
     switch (actionType) {
       case "UNARMED":
-        if (selectedCard.suit !== "Fiori" && selectedCard.suit !== "Picche") 
-          return { ok: false, severity: "block", message: "Puoi combattere solo contro i mostri!" };
-        return { ok: true, severity: "success", message: "Mostro sconfitto a mani nude! Subirai danni." };
+        if (selectedCard?.suit !== "Fiori" && selectedCard?.suit !== "Picche") 
+          return { ok: false, severity: "block", message: "Bersaglio non valido per attacco." };
+        return { ok: true, severity: "success", message: "Combattimento a mani nude!" };
 
       case "WEAPON":
-        if (selectedCard.suit === "Quadri") {
-          return { ok: true, severity: "success", message: "Arma equipaggiata!" };
-        }
-        if (selectedCard.suit === "Fiori" || selectedCard.suit === "Picche") {
-          if (!equippedWeapon) return { ok: false, severity: "block", message: "Equipaggia un'arma prima!" };
-          if (equippedWeapon.value >= selectedCard.value) return { ok: true, severity: "success", message: "Mostro sconfitto con arma!" };
-          if (mode === "easy") return { ok: true, severity: "warn", message: "L'arma è debole! Subirai -2 HP (Easy Mode)." };
-          return { ok: false, severity: "block", message: "L'arma è troppo debole!" };
+        if (selectedCard?.suit === "Quadri") return { ok: true, severity: "success", message: "Equipaggio arma." };
+        if (selectedCard?.suit === "Fiori" || selectedCard?.suit === "Picche") {
+          if (!equippedWeapon) return { ok: false, severity: "block", message: "Nessuna arma!" };
+          if (equippedWeapon.value < selectedCard.value && gameState.mode === "normal")
+            return { ok: false, severity: "block", message: "Arma troppo debole!" };
+          return { ok: true, severity: "success", message: "Attacco con arma!" };
         }
         return { ok: false, severity: "block", message: "Azione non valida." };
 
       case "POTION_ROOM":
-        if (selectedCard.suit !== "Cuori") return { ok: false, severity: "block", message: "Questa non è una pozione!" };
-        return { ok: true, severity: "success", message: "Cura dalla stanza applicata!" };
+        if (selectedCard?.suit !== "Cuori") return { ok: false, severity: "block", message: "Non è una pozione." };
+        return { ok: true, severity: "success", message: "Bevuta rapida!" };
 
       default:
-        return { ok: false, severity: "block", message: "Azione sconosciuta." };
+        return { ok: false, severity: "block", message: "Azione ignota." };
     }
   };
 
   const applyAction = (actionType: string) => {
     const validation = validateAction(actionType);
-    
     if (!validation.ok) {
       addToast(validation.message, validation.severity === "block" ? "error" : "warning");
       return;
     }
 
     setGameState(prev => {
-      let nextState = { ...prev };
+      let next = { ...prev };
       const selectedCard = prev.room.find(c => c.id === prev.selectedCardId);
 
       if (actionType === "FUGA") {
-        const remainingCards = [...prev.room];
-        const newDeck = [...prev.deck, ...remainingCards];
-        for (let i = newDeck.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
-        }
-        nextState.deck = newDeck;
-        nextState.room = [];
-        nextState.fugaDisponibile = false;
-        nextState.fugaUsataUltimaStanza = true; 
-        addFloatingText("RITIRATA!", "action");
+        const fleeingCards = [...prev.room];
+        next.deck = [...prev.deck, ...fleeingCards];
+        next.room = next.deck.splice(0, 4);
+        next.roomIndex += 1;
+        next.sessionStats.roomsReached += 1;
+        next.sessionStats.runsUsed += 1;
+        next.fugaDisponibile = false;
+        next.selectedCardId = null;
+        addToast("Fuga! Carte rimesse in fondo al mazzo.", "warning");
         triggerEffect("flash-blue");
-        return nextState;
+        return next;
       }
 
       if (actionType === "POTION_STOCK") {
-        nextState.health = Math.min(prev.maxHealth, prev.health + POTION_HEAL);
-        nextState.potions = prev.potions - 1;
-        addFloatingText(`+${POTION_HEAL} HP`, "heal");
-        addFloatingText("GLUB!", "action");
+        const actualHeal = Math.min(prev.maxHealth - prev.health, POTION_HEAL);
+        next.health += actualHeal;
+        next.potions -= 1;
+        next.sessionStats.healingDone += actualHeal;
+        next.sessionStats.potionsUsed += 1;
+        addFloatingText(`+${actualHeal} HP`, "heal");
         triggerEffect("animate-heal");
-        return nextState;
+        return next;
       }
 
-      if (!selectedCard) return nextState;
+      if (!selectedCard) return next;
 
       switch (actionType) {
         case "UNARMED":
-          nextState.health -= selectedCard.value;
-          nextState.room = prev.room.filter(c => c.id !== prev.selectedCardId);
-          nextState.enemiesDefeated += 1;
-          addFloatingText(`-${selectedCard.value} HP`, "damage");
-          addFloatingText("CRUNCH!", "action");
-          triggerExplosion("#991b1b");
+          next.health -= selectedCard.value;
+          next.sessionStats.damageTaken += selectedCard.value;
+          next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
+          next.enemiesDefeated += 1;
+          next.sessionStats.enemiesDefeated += 1;
+          addFloatingText(`-${selectedCard.value} HP`, "damage", true);
+          triggerExplosion("#b91c1c");
           triggerEffect("animate-shake-heavy flash-red-heavy blood-vignette");
+          addToast(`Mani Nude: Hai sconfitto il mostro ma subito ${selectedCard.value} danni!`, "warning");
           break;
 
         case "WEAPON":
           if (selectedCard.suit === "Quadri") {
-            nextState.equippedWeapon = selectedCard;
-            nextState.room = prev.room.filter(c => c.id !== prev.selectedCardId);
+            next.equippedWeapon = selectedCard;
+            next.sessionStats.weaponsEquipped += 1;
+            next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
             addFloatingText("EQUIP!", "equip");
+            triggerExplosion("#3b82f6"); // Blue explosion for successful equip
             triggerEffect("flash-blue animate-weapon-pop");
           } else {
             if (prev.equippedWeapon && prev.equippedWeapon.value >= selectedCard.value) {
-              nextState.room = prev.room.filter(c => c.id !== prev.selectedCardId);
-              nextState.enemiesDefeated += 1;
+              next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
+              next.enemiesDefeated += 1;
+              next.sessionStats.enemiesDefeated += 1;
               addFloatingText("SLASH!", "action");
-              addFloatingText("CRITICAL!", "action");
               triggerExplosion("#3b82f6");
               triggerEffect("impact-effect flash-blue");
             } else if (prev.mode === "easy") {
-              nextState.health -= 2;
+              next.health -= 2;
+              next.sessionStats.damageTaken += 2;
+              next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
+              next.enemiesDefeated += 1;
+              next.sessionStats.enemiesDefeated += 1;
               addFloatingText("-2 HP", "damage");
-              addFloatingText("FAIL!", "action");
               triggerEffect("animate-shake flash-red");
             }
           }
           break;
 
         case "POTION_ROOM":
-          nextState.health = Math.min(prev.maxHealth, prev.health + selectedCard.value);
-          nextState.room = prev.room.filter(c => c.id !== prev.selectedCardId);
-          addFloatingText(`+${selectedCard.value} HP`, "heal");
-          addFloatingText("SLURP!", "action");
+          const roomHeal = Math.min(prev.maxHealth - prev.health, selectedCard.value);
+          next.health += roomHeal;
+          next.sessionStats.healingDone += roomHeal;
+          next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
+          addFloatingText(`+${roomHeal} HP`, "heal");
           triggerEffect("animate-heal");
           break;
       }
 
-      nextState.selectedCardId = null;
-      if (nextState.health <= 0) nextState.status = "lost";
-      return nextState;
+      next.selectedCardId = null;
+      if (next.health <= 0) {
+        next.status = "lost";
+        updateGlobalStats("lost", next.sessionStats);
+        return next;
+      }
+
+      return checkRoomTransition(next);
     });
   };
 
-  useEffect(() => {
-    if (gameState.status === "playing") {
-        if (gameState.room.length === 1) {
-            addToast("Quarta carta scartata... prossima stanza.", "info");
-            const timer = setTimeout(() => {
-                setGameState(prev => ({ ...prev, room: [] }));
-                startNextRoom();
-            }, 1000);
-            return () => clearTimeout(timer);
-        } else if (gameState.room.length === 0) {
-            startNextRoom();
-        }
-    }
-  }, [gameState.room.length, gameState.status, startNextRoom]);
-
   if (gameState.status === "start") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950">
-        <h1 className="text-7xl title-font font-bold mb-8 text-red-600 tracking-tighter uppercase drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]">Scoundrel</h1>
-        <p className="text-slate-400 mb-12 text-center max-w-md italic">Sopravvivi al dungeon. Gestisci le tue risorse. Non voltarti indietro.</p>
-        <div className="flex flex-col md:flex-row gap-6 w-full max-w-sm">
-          <button onClick={() => startNewGame("normal")} className="flex-1 px-8 py-4 bg-red-600 hover:bg-red-500 transition-all font-bold rounded-xl border-b-4 border-red-800 active:border-b-0 active:translate-y-1">NORMAL</button>
-          <button onClick={() => startNewGame("easy")} className="flex-1 px-8 py-4 bg-slate-700 hover:bg-slate-600 transition-all font-bold rounded-xl border-b-4 border-slate-900 active:border-b-0 active:translate-y-1">EASY</button>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white font-inter">
+        <h1 className="text-8xl title-font font-bold mb-8 text-red-600 tracking-tighter uppercase drop-shadow-[0_0_25px_rgba(220,38,38,0.5)]">Scoundrel</h1>
+        <p className="text-slate-400 italic mb-12 text-center max-w-md">Un mazzo di carte. Un eroe. Un dungeon senza uscita. Solo la tua astuzia può salvarti.</p>
+        
+        <div className="flex flex-col gap-4 w-full max-w-sm">
+          <div className="grid grid-cols-2 gap-4 mb-4">
+             <button onClick={() => startNewGame("normal")} className="px-8 py-5 bg-red-600 hover:bg-red-500 transition-all font-black rounded-2xl border-b-4 border-red-900 active:border-b-0 active:translate-y-1 text-sm tracking-widest">NORMAL</button>
+             <button onClick={() => startNewGame("easy")} className="px-8 py-5 bg-slate-800 hover:bg-slate-700 transition-all font-black rounded-2xl border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 text-sm tracking-widest">EASY</button>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <button onClick={() => setShowStats(true)} className="w-full py-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-xl font-bold transition-all text-xs tracking-widest uppercase">📊 Statistiche Globali</button>
+            <button onClick={() => setShowRules(true)} className="w-full py-4 text-slate-500 hover:text-white transition-colors underline underline-offset-4 text-xs font-bold uppercase tracking-widest">📖 Regole</button>
+          </div>
         </div>
-        <button onClick={() => setShowRules(true)} className="mt-12 text-slate-500 hover:text-white transition-colors underline underline-offset-4">📖 Regole del Gioco</button>
+
         {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+        {showStats && (
+          <div className="fixed inset-0 z-[300] bg-black/90 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl w-full max-w-2xl shadow-2xl">
+              <h2 className="text-3xl font-black mb-8 title-font tracking-widest text-red-500">RECORD DEL DUNGEON</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Partite Totali</span>
+                  <span className="text-2xl font-bold">{globalStats.totalGames}</span>
+                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Vittorie</span>
+                  <span className="text-2xl font-bold text-emerald-500">{globalStats.wins}</span>
+                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Win Rate</span>
+                  <span className="text-2xl font-bold">{globalStats.totalGames > 0 ? Math.round((globalStats.wins/globalStats.totalGames)*100) : 0}%</span>
+                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Max Stanze</span>
+                  <span className="text-2xl font-bold">{globalStats.bestRun.rooms}</span>
+                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Max Nemici</span>
+                  <span className="text-2xl font-bold">{globalStats.bestRun.enemies}</span>
+                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Danni Totali</span>
+                  <span className="text-2xl font-bold text-red-400">{globalStats.totalDamageTaken}</span>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <button onClick={() => {
+                  if(confirm("Azzerare tutto?")) {
+                    setGlobalStats(INITIAL_GLOBAL_STATS);
+                    localStorage.removeItem(STATS_KEY);
+                  }
+                }} className="flex-1 py-4 bg-red-950/30 text-red-500 font-bold rounded-xl border border-red-900/50 hover:bg-red-900/40 transition-all text-xs uppercase">Resetta</button>
+                <button onClick={() => setShowStats(false)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 font-bold rounded-xl transition-all text-xs uppercase tracking-widest">Chiudi</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   if (gameState.status === "won" || gameState.status === "lost") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-black">
-        <div className={`p-10 rounded-3xl border-2 flex flex-col items-center ${gameState.status === "won" ? 'border-emerald-500 bg-emerald-950/20' : 'border-red-900 bg-red-950/20'}`}>
-            <h1 className={`text-6xl title-font font-bold mb-6 uppercase ${gameState.status === "won" ? 'text-emerald-400' : 'text-red-600'}`}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white">
+        <div className={`p-12 rounded-[40px] border-2 flex flex-col items-center w-full max-w-lg shadow-2xl ${gameState.status === "won" ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-red-900/50 bg-red-950/10'}`}>
+            <h1 className={`text-7xl title-font font-black mb-4 uppercase tracking-tighter ${gameState.status === "won" ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]' : 'text-red-600 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]'}`}>
                 {gameState.status === "won" ? "VITTORIA" : "SCONFITTA"}
             </h1>
-            <p className="text-slate-300 mb-8 text-center italic">
-                {gameState.status === "won" ? "Hai ripulito il dungeon!" : "Il dungeon ha avuto la meglio."}
-            </p>
-            <div className="grid grid-cols-2 gap-8 mb-10 text-center">
-                <div>
-                    <span className="block text-slate-500 uppercase text-xs font-bold">Mostri</span>
-                    <span className="text-3xl font-black text-white">{gameState.enemiesDefeated}</span>
-                </div>
-                <div>
-                    <span className="block text-slate-500 uppercase text-xs font-bold">Stanze</span>
-                    <span className="text-3xl font-black text-white">{gameState.roomIndex}</span>
-                </div>
+            <p className="text-slate-400 mb-10 text-center italic">{gameState.status === "won" ? "Hai ripulito il dungeon e ne sei uscito con onore." : "Il dungeon ha reclamato la tua anima. Ritenta ancora."}</p>
+            
+            <div className="grid grid-cols-2 gap-4 w-full mb-10">
+              <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Mostri Sconfitti</span>
+                <span className="text-2xl font-bold">{gameState.sessionStats.enemiesDefeated}</span>
+              </div>
+              <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Stanze Esplorate</span>
+                <span className="text-2xl font-bold">{gameState.sessionStats.roomsReached}</span>
+              </div>
             </div>
-            <button onClick={() => setGameState(prev => ({ ...prev, status: "start" }))} className="w-full py-4 bg-white text-slate-900 font-black rounded-xl hover:scale-105 transition-transform">MENU PRINCIPALE</button>
+
+            <button onClick={() => setGameState(prev => ({ ...prev, status: "start" }))} className="w-full py-5 bg-white text-slate-950 font-black rounded-2xl hover:scale-105 active:scale-95 transition-all text-sm tracking-widest uppercase">TORNA ALLA HOME</button>
         </div>
       </div>
     );
@@ -336,80 +440,45 @@ const App: React.FC = () => {
   ) : undefined;
 
   return (
-    <div className={`min-h-screen flex flex-col p-4 md:p-8 bg-slate-950 transition-colors duration-300 relative overflow-hidden ${visualEffect?.includes('blood-vignette') ? 'blood-vignette' : ''}`}>
-      <div className={`fixed inset-0 pointer-events-none z-[400] transition-colors duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : visualEffect?.includes('flash-red') ? 'flash-red' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''}`} />
+    <div className={`min-h-screen flex flex-col p-4 md:p-8 bg-slate-950 transition-all duration-300 relative overflow-hidden ${visualEffect?.includes('blood-vignette') ? 'blood-vignette' : ''}`}>
+      <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : visualEffect?.includes('flash-red') ? 'flash-red' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''}`} />
       
       {explosions.map(exp => (
         <div key={exp.id} className="fixed inset-0 pointer-events-none z-[450]" style={{ left: `${exp.x}%`, top: `${exp.y}%` }}>
           <div className="shockwave" style={{ borderColor: exp.color }} />
-          {[...Array(12)].map((_, i) => {
-            const angle = (i / 12) * Math.PI * 2;
-            const dist = 100 + Math.random() * 150;
-            const tx = Math.cos(angle) * dist;
-            const ty = Math.sin(angle) * dist;
-            return (
-              <div 
-                key={i} 
-                className="particle" 
-                style={{ 
-                  backgroundColor: exp.color,
-                  '--tw-translate-x': `${tx}px`,
-                  '--tw-translate-y': `${ty}px`
-                } as any}
-              />
-            );
-          })}
         </div>
       ))}
 
       {floatingTexts.map(ft => (
         <div 
           key={ft.id} 
-          className={`floating-text ${
-            ft.type === 'damage' ? 'text-red-500' : 
-            ft.type === 'heal' ? 'text-emerald-400' : 
-            ft.type === 'equip' ? 'text-blue-400 font-black' : 
-            'text-yellow-400 font-serif italic'
-          }`}
+          className={`floating-text ${ft.type === 'damage' ? 'text-red-500' : ft.type === 'heal' ? 'text-emerald-400' : 'text-blue-400'} ${ft.isUnarmed ? 'text-5xl scale-125' : 'text-3xl'}`} 
           style={{ left: `${ft.x}%`, top: `${ft.y}%` }}
         >
           {ft.text}
         </div>
       ))}
 
-      {visualEffect?.includes('impact-effect') && <div className="slash-effect" />}
-
       <div className={`flex-1 flex flex-col max-w-6xl mx-auto w-full transition-transform duration-300 ${currentEffectClass || ''}`}>
         <HUD state={gameState} effectClass={currentEffectClass} />
-        
-        <Room 
-          cards={gameState.room} 
-          selectedId={gameState.selectedCardId} 
-          onSelect={selectCard} 
-        />
+        <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(prev => ({ ...prev, selectedCardId: id === prev.selectedCardId ? null : id }))} />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 sticky bottom-8 bg-slate-900/90 backdrop-blur-xl p-5 rounded-2xl border border-slate-700 shadow-2xl z-40">
-          <button onClick={() => applyAction("UNARMED")} className="py-4 bg-orange-600 hover:bg-orange-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-900 active:border-b-0 active:translate-y-1">Mani Nude</button>
-          <button onClick={() => applyAction("WEAPON")} className="py-4 bg-blue-600 hover:bg-blue-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-900 active:border-b-0 active:translate-y-1">Usa/Equip Arma</button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 sticky bottom-8 bg-slate-900/90 backdrop-blur-xl p-5 rounded-3xl border border-slate-700 shadow-2xl z-40">
+          <button onClick={() => applyAction("UNARMED")} className="py-4 bg-orange-600 hover:bg-orange-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-900 active:border-b-0 active:translate-y-1">MANI NUDE</button>
+          <button onClick={() => applyAction("WEAPON")} className="py-4 bg-blue-600 hover:bg-blue-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-900 active:border-b-0 active:translate-y-1">USA/EQUIP ARMA</button>
           <button onClick={() => {
               const selectedCard = gameState.room.find(c => c.id === gameState.selectedCardId);
               if (selectedCard?.suit === "Cuori") applyAction("POTION_ROOM");
               else applyAction("POTION_STOCK");
-            }} className="py-4 bg-emerald-600 hover:bg-emerald-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-900 active:border-b-0 active:translate-y-1">Usa Pozione</button>
-          <button onClick={() => applyAction("FUGA")} className={`py-4 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 ${gameState.fugaDisponibile ? 'bg-slate-700 border-slate-900 hover:bg-slate-600' : 'bg-slate-900 text-slate-600 border-black cursor-not-allowed opacity-50'}`} disabled={!gameState.fugaDisponibile}>{gameState.fugaDisponibile ? "Ritirata" : "In Cooldown"}</button>
+            }} className="py-4 bg-emerald-600 hover:bg-emerald-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-900 active:border-b-0 active:translate-y-1">USA POZIONE</button>
+          <button onClick={() => applyAction("FUGA")} className={`py-4 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-900 hover:bg-slate-600' : 'bg-slate-900 text-slate-600 border-black cursor-not-allowed opacity-50'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>{gameState.fugaDisponibile ? "RITIRATA" : "COOLDOWN"}</button>
         </div>
       </div>
 
-      <button onClick={() => setShowRules(true)} className="fixed bottom-6 right-6 bg-red-600 text-white w-14 h-14 flex items-center justify-center rounded-full shadow-lg border-2 border-red-400 hover:scale-110 transition-transform z-50">
-        <span className="text-2xl">📖</span>
-      </button>
-
-      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      <button onClick={() => setShowRules(true)} className="fixed bottom-6 right-6 bg-red-600 text-white w-14 h-14 flex items-center justify-center rounded-full shadow-lg border-2 border-red-400 hover:scale-110 transition-transform z-50 text-xl font-black">📖</button>
       
       <div className="fixed top-6 right-6 flex flex-col gap-3 z-[100] pointer-events-none">
-        {toasts.map(t => (
-          <Toast key={t.id} message={t.message} kind={t.kind} />
-        ))}
+        {toasts.map(t => <Toast key={t.id} message={t.message} kind={t.kind} />)}
       </div>
     </div>
   );

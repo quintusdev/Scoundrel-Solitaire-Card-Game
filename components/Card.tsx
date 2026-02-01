@@ -7,15 +7,17 @@ interface CardProps {
   card: CardType;
   isSelected: boolean;
   onClick: () => void;
+  animationDelay?: string;
 }
 
-const Card: React.FC<CardProps> = ({ card, isSelected, onClick }) => {
+const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay }) => {
   const isRed = card.suit === "Cuori" || card.suit === "Quadri";
   const typeLabel = card.suit === "Cuori" ? "Pozione" : card.suit === "Quadri" ? "Arma" : "Mostro";
 
   return (
     <div 
       onClick={onClick}
+      style={{ animationDelay }}
       className={`
         relative w-full aspect-[2/3] max-w-[180px] rounded-2xl cursor-pointer 
         transition-all duration-300 transform border-2 card-animate
