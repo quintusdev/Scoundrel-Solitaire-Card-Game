@@ -7,9 +7,10 @@ interface RoomProps {
   cards: CardType[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  isExiting?: boolean;
 }
 
-const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect }) => {
+const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false }) => {
   return (
     <div className="flex flex-row flex-nowrap gap-4 md:gap-8 flex-1 items-center justify-center overflow-x-auto pb-8 scrollbar-hide">
       {cards.map((card, index) => (
@@ -18,11 +19,12 @@ const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect }) => {
             card={card} 
             isSelected={selectedId === card.id} 
             onClick={() => onSelect(card.id)} 
-            animationDelay={`${index * 0.15}s`}
+            animationDelay={`${index * 0.1}s`}
+            isExiting={isExiting}
           />
         </div>
       ))}
-      {cards.length === 0 && (
+      {cards.length === 0 && !isExiting && (
         <div className="py-20 text-slate-600 text-center animate-pulse w-full">
           La stanza è vuota... prossima stanza in arrivo...
         </div>

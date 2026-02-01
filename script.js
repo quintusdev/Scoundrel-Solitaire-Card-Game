@@ -10,6 +10,29 @@ const STATS_KEY = "scoundrel_stats_v1";
 const SUITS = ["Cuori", "Quadri", "Fiori", "Picche"];
 const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
+// --- VISUAL FEEDBACK ENGINE ---
+function triggerExplosion(color = "#ef4444") {
+  const overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 pointer-events-none z-[1000] flex items-center justify-center';
+  overlay.innerHTML = `<div class="shockwave" style="border-color: ${color}; width: 100px; height: 100px; border-width: 4px; border-style: solid; border-radius: 50%; animation: shockwave-animate 0.8s ease-out forwards;"></div>`;
+  document.body.appendChild(overlay);
+  
+  // Aggiungi stile dinamico se non presente
+  if (!document.getElementById('shockwave-style')) {
+    const style = document.createElement('style');
+    style.id = 'shockwave-style';
+    style.innerHTML = `
+      @keyframes shockwave-animate {
+        0% { transform: scale(0.5); opacity: 1; }
+        100% { transform: scale(4); opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  setTimeout(() => overlay.remove(), 800);
+}
+
 // --- PIXEL ART ENGINE ---
 function generatePixelArtSVG(type, value) {
   const pixels = [];
@@ -114,6 +137,7 @@ let gameState = {
 // --- RENDER CORE ---
 function renderRoom() {
   const container = document.getElementById("room-container");
+  if (!container) return;
   container.innerHTML = "";
   
   gameState.room.forEach(card => {
@@ -187,29 +211,42 @@ function getSuitIcon(suit) {
 function updateHUD() {
   const bar = document.getElementById("health-bar");
   const hpText = document.getElementById("health-text");
+  if (!bar || !hpText) return;
+
   const pct = (gameState.health / gameState.maxHealth) * 100;
   bar.style.width = `${pct}%`;
   hpText.innerText = `${gameState.health}/${gameState.maxHealth}`;
 
-  document.getElementById("weapon-text").innerText = gameState.equippedWeapon 
-    ? `${getSuitIcon(gameState.equippedWeapon.suit)}${gameState.equippedWeapon.rank} (${gameState.equippedWeapon.value})`
-    : "Nuda";
+  const weaponText = document.getElementById("weapon-text");
+  if (weaponText) {
+    weaponText.innerText = gameState.equippedWeapon 
+      ? `${getSuitIcon(gameState.equippedWeapon.suit)}${gameState.equippedWeapon.rank} (${gameState.equippedWeapon.value})`
+      : "Nuda";
+  }
   
-  document.getElementById("potions-text").innerText = `🧪 ${gameState.potions}`;
-  document.getElementById("room-text").innerText = gameState.roomIndex;
-  document.getElementById("deck-text").innerText = gameState.deck.length;
+  const potionsText = document.getElementById("potions-text");
+  if (potionsText) potionsText.innerText = `🧪 ${gameState.potions}`;
+
+  const roomText = document.getElementById("room-text");
+  if (roomText) roomText.innerText = gameState.roomIndex;
+
+  const deckText = document.getElementById("deck-text");
+  if (deckText) deckText.innerText = gameState.deck.length;
 
   const targetBox = document.getElementById("target-value");
-  const selected = gameState.room.find(c => c.id === gameState.selectedCardId);
-  if (selected) {
-    targetBox.innerText = `${getSuitIcon(selected.suit)}${selected.rank} (Val: ${selected.value})`;
-    targetBox.classList.add("text-emerald");
-  } else {
-    targetBox.innerText = "Nessuna selezione";
-    targetBox.classList.remove("text-emerald");
+  if (targetBox) {
+    const selected = gameState.room.find(c => c.id === gameState.selectedCardId);
+    if (selected) {
+      targetBox.innerText = `${getSuitIcon(selected.suit)}${selected.rank} (Val: ${selected.value})`;
+      targetBox.classList.add("text-emerald");
+    } else {
+      targetBox.innerText = "Nessuna selezione";
+      targetBox.classList.remove("text-emerald");
+    }
   }
 
-  document.getElementById("action-flee").disabled = !gameState.fleeAvailable || gameState.room.length < 2;
+  const fleeBtn = document.getElementById("action-flee");
+  if (fleeBtn) fleeBtn.disabled = !gameState.fleeAvailable || gameState.room.length < 2;
 }
 
 // Stats manager connection (mockup for this example)
@@ -228,17 +265,27 @@ function initGame() {
 }
 
 function bindEvents() {
-  document.getElementById("btn-start").addEventListener("click", () => {
-    const mode = document.querySelector('input[name="gameMode"]:checked').value;
+  const startBtn = document.getElementById("btn-start");
+  if (startBtn) startBtn.addEventListener("click", () => {
+    const checkedMode = document.querySelector('input[name="gameMode"]:checked');
+    const mode = checkedMode ? checkedMode.value : "normal";
     startNewGame(mode);
   });
   
-  document.getElementById("action-unarmed").addEventListener("click", () => handleAction("unarmed"));
-  document.getElementById("action-weapon").addEventListener("click", () => handleAction("weapon"));
-  document.getElementById("action-potion").addEventListener("click", () => handleAction("potion"));
-  document.getElementById("action-flee").addEventListener("click", () => handleAction("flee"));
+  const actionUnarmed = document.getElementById("action-unarmed");
+  if (actionUnarmed) actionUnarmed.addEventListener("click", () => handleAction("unarmed"));
+
+  const actionWeapon = document.getElementById("action-weapon");
+  if (actionWeapon) actionWeapon.addEventListener("click", () => handleAction("weapon"));
+
+  const actionPotion = document.getElementById("action-potion");
+  if (actionPotion) actionPotion.addEventListener("click", () => handleAction("potion"));
+
+  const actionFlee = document.getElementById("action-flee");
+  if (actionFlee) actionFlee.addEventListener("click", () => handleAction("flee"));
   
-  document.getElementById("btn-restart").addEventListener("click", () => showScreen("home-screen"));
+  const restartBtn = document.getElementById("btn-restart");
+  if (restartBtn) restartBtn.addEventListener("click", () => showScreen("home-screen"));
 }
 
 function startNewGame(mode) {
@@ -301,20 +348,76 @@ function drawRoom() {
 
 function handleAction(type) {
   const selected = gameState.room.find(c => c.id === gameState.selectedCardId);
+  
   if (type === "flee") {
     if (!gameState.fleeAvailable || gameState.room.length < 2) return;
     gameState.deck.push(...gameState.room);
     gameState.room = [];
     gameState.fleeAvailable = false;
-    checkTransition();
+    setTimeout(drawRoom, 500); 
     return;
   }
+  
   if (type === "potion" && !selected) {
     if (gameState.potions > 0 && gameState.health < gameState.maxHealth) {
       heal(7); gameState.potions--; updateHUD();
     }
     return;
   }
+  
   if (!selected) return;
 
-  if (type === "unarmed" && (selected.suit === "Fiori
+  if (type === "unarmed" && (selected.suit === "Fiori" || selected.suit === "Picche")) {
+    damage(selected.value); 
+    removeCard(selected.id);
+  } else if (type === "weapon") {
+    if (selected.suit === "Quadri") {
+      gameState.equippedWeapon = selected; 
+      removeCard(selected.id);
+      triggerExplosion("#3b82f6"); // Feedback per equipaggiamento
+    } else if (gameState.equippedWeapon && gameState.equippedWeapon.value >= selected.value) {
+      removeCard(selected.id);
+      // TRIGGER BLUE EXPLOSION ON WEAPON DEFEAT
+      triggerExplosion("#3b82f6");
+    }
+  } else if (type === "potion" && selected.suit === "Cuori") {
+    heal(selected.value); 
+    removeCard(selected.id);
+  }
+}
+
+function damage(v) { 
+  gameState.health = Math.max(0, gameState.health - v); 
+  if (gameState.health <= 0) endGame("lose"); 
+  updateHUD(); 
+  triggerExplosion("#ef4444"); // Feedback per danno
+}
+
+function heal(v) { 
+  gameState.health = Math.min(gameState.maxHealth, gameState.health + v); 
+  updateHUD(); 
+  triggerExplosion("#10b981"); // Feedback per cura
+}
+
+function removeCard(id) { 
+  gameState.room = gameState.room.filter(c => c.id !== id); 
+  gameState.selectedCardId = null; 
+  renderRoom(); 
+  if (gameState.room.length <= 1) { 
+    gameState.fleeAvailable = true; 
+    setTimeout(drawRoom, 400); 
+  } 
+}
+
+function showScreen(id) { 
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active")); 
+  const target = document.getElementById(id);
+  if (target) target.classList.add("active"); 
+}
+
+function endGame(res) { 
+  const modal = document.getElementById("end-modal");
+  if (modal) modal.classList.add("active"); 
+}
+
+window.onload = initGame;

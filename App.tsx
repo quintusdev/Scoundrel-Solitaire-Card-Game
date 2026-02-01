@@ -77,6 +77,7 @@ const App: React.FC = () => {
   const [visualEffect, setVisualEffect] = useState<string | null>(null);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [explosions, setExplosions] = useState<Explosion[]>([]);
+  const [isFleeing, setIsFleeing] = useState(false);
   
   // Tutorial State
   const [isTutorial, setIsTutorial] = useState(false);
@@ -278,6 +279,29 @@ const App: React.FC = () => {
       return;
     }
 
+    if (actionType === "FUGA") {
+      setIsFleeing(true);
+      triggerEffect("flash-blue");
+      addToast("Fuga! Carte rimesse in fondo al mazzo.", "warning");
+      
+      // Delay the actual state update for the animation to play
+      setTimeout(() => {
+        setGameState(prev => {
+          let next = { ...prev };
+          const fleeingCards = [...prev.room];
+          next.deck = [...prev.deck, ...fleeingCards];
+          next.room = next.deck.splice(0, 4);
+          next.roomIndex += 1;
+          next.sessionStats.runsUsed += 1;
+          next.fugaDisponibile = false;
+          next.selectedCardId = null;
+          return next;
+        });
+        setIsFleeing(false);
+      }, 700);
+      return;
+    }
+
     // Advance Tutorial
     if (isTutorial) {
       if (tutorialStep === 2 && actionType === "UNARMED") setTutorialStep(3);
@@ -287,20 +311,6 @@ const App: React.FC = () => {
     setGameState(prev => {
       let next = { ...prev };
       const selectedCard = prev.room.find(c => c.id === prev.selectedCardId);
-
-      if (actionType === "FUGA") {
-        const fleeingCards = [...prev.room];
-        next.deck = [...prev.deck, ...fleeingCards];
-        next.room = next.deck.splice(0, 4);
-        next.roomIndex += 1;
-        next.sessionStats.roomsReached += 1;
-        next.sessionStats.runsUsed += 1;
-        next.fugaDisponibile = false;
-        next.selectedCardId = null;
-        addToast("Fuga! Carte rimesse in fondo al mazzo.", "warning");
-        triggerEffect("flash-blue");
-        return next;
-      }
 
       if (actionType === "POTION_STOCK") {
         const actualHeal = Math.min(prev.maxHealth - prev.health, POTION_HEAL);
@@ -342,7 +352,7 @@ const App: React.FC = () => {
               next.enemiesDefeated += 1;
               next.sessionStats.enemiesDefeated += 1;
               addFloatingText("SLASH!", "action");
-              triggerExplosion("#3b82f6");
+              triggerExplosion("#3b82f6"); 
               triggerEffect("impact-effect flash-blue");
             } else if (prev.mode === "easy") {
               next.health -= 2;
@@ -390,6 +400,8 @@ const App: React.FC = () => {
   };
 
   if (gameState.status === "start") {
+    const winRate = globalStats.totalGames > 0 ? Math.round((globalStats.wins/globalStats.totalGames)*100) : 0;
+    
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white font-inter overflow-hidden relative">
         {/* Animated Background Orbs */}
@@ -425,46 +437,87 @@ const App: React.FC = () => {
 
         {showRules && <RulesModal onClose={() => setShowRules(false)} />}
         {showStats && (
-          <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border-2 border-slate-700 p-8 rounded-[40px] w-full max-w-2xl shadow-2xl relative overflow-hidden">
+          <div className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-slate-900 border-2 border-slate-700 p-8 rounded-[40px] w-full max-w-2xl shadow-2xl relative overflow-hidden modal-animate-in">
               <div className="absolute top-0 right-0 p-4">
                 <button onClick={() => setShowStats(false)} className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-colors">✕</button>
               </div>
-              <h2 className="text-4xl font-black mb-10 title-font tracking-widest text-red-500 uppercase">Sala dei Record</h2>
+              <h2 className="text-4xl font-black mb-10 title-font tracking-widest text-red-500 uppercase flex items-center gap-4">
+                <span>Sala dei Record</span>
+                <div className="h-1 flex-1 bg-slate-800 rounded-full relative overflow-hidden">
+                   <div className="absolute inset-0 bg-red-500/20 animate-pulse" />
+                </div>
+              </h2>
+              
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-10">
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                <div className="stat-card p-6 rounded-3xl">
                   <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Partite Totali</span>
                   <span className="text-3xl font-bold">{globalStats.totalGames}</span>
                 </div>
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                <div className="stat-card p-6 rounded-3xl">
                   <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Vittorie</span>
                   <span className="text-3xl font-bold text-emerald-500">{globalStats.wins}</span>
                 </div>
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                <div className="stat-card p-6 rounded-3xl relative overflow-hidden">
                   <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Win Rate</span>
-                  <span className="text-3xl font-bold">{globalStats.totalGames > 0 ? Math.round((globalStats.wins/globalStats.totalGames)*100) : 0}%</span>
+                  <div className="relative z-10">
+                    <span className="text-3xl font-bold">{winRate}%</span>
+                    <div className="mt-2 w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 progress-bar-fill" 
+                        style={{ width: `${winRate}%` }} 
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Max Stanze</span>
+                <div className={`stat-card p-6 rounded-3xl ${globalStats.bestRun.rooms > 5 ? 'record-glow' : ''}`}>
+                  <span className="block text-[10px] text-gold font-black uppercase mb-1 tracking-widest flex items-center gap-1">
+                    🏆 Max Stanze
+                  </span>
                   <span className="text-3xl font-bold">{globalStats.bestRun.rooms}</span>
                 </div>
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Max Nemici</span>
+                <div className={`stat-card p-6 rounded-3xl ${globalStats.bestRun.enemies > 10 ? 'record-glow' : ''}`}>
+                  <span className="block text-[10px] text-gold font-black uppercase mb-1 tracking-widest flex items-center gap-1">
+                    ⚔️ Max Nemici
+                  </span>
                   <span className="text-3xl font-bold">{globalStats.bestRun.enemies}</span>
                 </div>
-                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                <div className="stat-card p-6 rounded-3xl">
                   <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Danni Totali</span>
                   <span className="text-3xl font-bold text-red-400">{globalStats.totalDamageTaken}</span>
                 </div>
               </div>
+
+              <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 mb-8">
+                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Statistiche Cumulative</h4>
+                 <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Pozioni Usate</span>
+                      <span className="font-bold text-emerald-400">{globalStats.totalPotionsUsed}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Armi Equipaggiate</span>
+                      <span className="font-bold text-blue-400">{globalStats.totalWeaponsEquipped}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Cura Totale</span>
+                      <span className="font-bold text-emerald-500">{globalStats.totalHealingDone}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Ritirate Eseguite</span>
+                      <span className="font-bold text-slate-500">{globalStats.totalRunsUsed}</span>
+                    </div>
+                 </div>
+              </div>
+
               <div className="flex gap-4">
                 <button onClick={() => {
                   if(confirm("Azzerare tutto? Questa azione è irreversibile.")) {
                     setGlobalStats(INITIAL_GLOBAL_STATS);
                     localStorage.removeItem(STATS_KEY);
                   }
-                }} className="px-8 py-4 bg-red-950/30 text-red-500 font-bold rounded-2xl border border-red-900/50 hover:bg-red-900/40 transition-all text-xs uppercase tracking-widest">Svuota Memoria</button>
-                <button onClick={() => setShowStats(false)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 font-bold rounded-2xl transition-all text-xs uppercase tracking-widest">Esci</button>
+                }} className="px-8 py-4 bg-red-950/20 text-red-500 font-bold rounded-2xl border border-red-900/30 hover:bg-red-900/40 transition-all text-xs uppercase tracking-widest">Azzera Dati</button>
+                <button onClick={() => setShowStats(false)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 font-bold rounded-2xl transition-all text-xs uppercase tracking-widest shadow-lg shadow-black/20">Chiudi Archivio</button>
               </div>
             </div>
           </div>
@@ -542,6 +595,7 @@ const App: React.FC = () => {
           cards={gameState.room} 
           selectedId={gameState.selectedCardId} 
           onSelect={handleTutorialStepAction} 
+          isExiting={isFleeing}
         />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 sticky bottom-8 bg-slate-900/95 backdrop-blur-2xl p-6 rounded-[40px] border border-slate-700/50 shadow-2xl z-40">
@@ -572,7 +626,7 @@ const App: React.FC = () => {
           <button 
             onClick={() => applyAction("FUGA")} 
             className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-900 hover:bg-slate-600' : 'bg-slate-900 text-slate-600 border-black cursor-not-allowed opacity-50'}`} 
-            disabled={!gameState.fugaDisponibile || gameState.room.length < 2}
+            disabled={!gameState.fugaDisponibile || gameState.room.length < 2 || isFleeing}
           >
             {gameState.fugaDisponibile ? "RITIRATA" : "COOLDOWN"}
           </button>

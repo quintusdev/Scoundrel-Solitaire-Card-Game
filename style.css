@@ -9,6 +9,7 @@
   --emerald: #10b981;
   --blue: #3b82f6;
   --monster-border: #475569;
+  --gold: #facc15;
 }
 
 body {
@@ -45,7 +46,7 @@ body {
   justify-content: space-between;
   font-weight: 900;
   font-size: 1.2rem;
-  z-index: 10; /* Sopra l'art */
+  z-index: 10;
   position: relative;
 }
 .card-red { color: #ef4444; }
@@ -61,14 +62,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1; /* Sotto i corner */
+  z-index: 1;
   pointer-events: none;
 }
 
 .card-art svg {
   width: 100%;
   height: 100%;
-  shape-rendering: crispEdges; /* Cruciale per Pixel Art */
+  shape-rendering: crispEdges;
 }
 
 /* Borders by Type */
@@ -87,6 +88,103 @@ body {
 @keyframes pulse-glow {
   from { box-shadow: 0 0 20px rgba(239, 68, 68, 0.2); }
   to { box-shadow: 0 0 45px rgba(239, 68, 68, 0.5); }
+}
+
+/* Stats Modal Enhancements */
+.stat-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.stat-card:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(94, 114, 228, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.record-glow {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(250, 204, 21, 0.3) !important;
+}
+.record-glow::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(250, 204, 21, 0.1) 0%, transparent 70%);
+  animation: pulse-record 3s infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse-record {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+.progress-bar-fill {
+  transition: width 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-animate-in {
+  animation: modal-zoom 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes modal-zoom {
+  0% { opacity: 0; transform: scale(0.9) translateY(20px); filter: blur(10px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+}
+
+/* Subtle & Fluid Entry Animation */
+.card-animate {
+  opacity: 0;
+  animation: 
+    card-entry-refined 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    card-shimmer-subtle 2s ease-out forwards;
+  position: relative;
+  will-change: transform, opacity;
+}
+
+@keyframes card-entry-refined {
+  0% { 
+    opacity: 0; 
+    transform: translateY(25px) scale(0.96) rotate(-1deg); 
+    filter: blur(8px) brightness(1.5);
+  }
+  100% { 
+    opacity: 1; 
+    transform: translateY(0) scale(1) rotate(0); 
+    filter: blur(0) brightness(1);
+  }
+}
+
+/* Elegant Glint effect */
+@keyframes card-shimmer-subtle {
+  0% {
+    background: linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 45%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 55%, rgba(255,255,255,0) 100%);
+    background-size: 250% 250%;
+    background-position: -120% -120%;
+  }
+  40% {
+    background-position: 120% 120%;
+  }
+  100% {
+    background-position: 120% 120%;
+  }
+}
+
+/* Exit animation for Flee */
+.card-exit-flee {
+  animation: card-flee-exit 0.5s cubic-bezier(0.55, 0.055, 0.675, 0.19) forwards !important;
+  pointer-events: none;
+}
+
+@keyframes card-flee-exit {
+  0% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+  100% { opacity: 0; transform: translateY(120px) scale(0.8) rotate(5deg); filter: blur(10px); }
 }
 
 /* UI Elements */
@@ -108,5 +206,5 @@ body {
   z-index: 10;
 }
 
-/* Scrollbar and utils */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

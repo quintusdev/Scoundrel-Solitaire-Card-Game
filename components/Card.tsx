@@ -8,9 +8,10 @@ interface CardProps {
   isSelected: boolean;
   onClick: () => void;
   animationDelay?: string;
+  isExiting?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay }) => {
+const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, isExiting }) => {
   const isRed = card.suit === "Cuori" || card.suit === "Quadri";
   const type = getCardType(card.suit);
   const typeLabel = type === "potion" ? "Pozione" : type === "weapon" ? "Arma" : "Mostro";
@@ -37,7 +38,8 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay }
       style={{ animationDelay }}
       className={`
         relative w-full aspect-[2/3] max-w-[180px] rounded-2xl cursor-pointer 
-        transition-all duration-300 transform border-2 card-animate
+        transition-all duration-300 transform border-2 
+        ${isExiting ? 'card-exit-flee' : 'card-animate'}
         card-${type} ${getRarityClass()}
         ${isSelected ? 'card-selected z-20 scale-105' : 'border-slate-800 bg-slate-900 hover:border-slate-600'}
         flex flex-col items-center justify-between p-4 select-none overflow-hidden
