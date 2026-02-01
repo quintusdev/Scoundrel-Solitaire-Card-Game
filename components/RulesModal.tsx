@@ -86,20 +86,26 @@ const RulesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       case "Fuga":
         return (
           <div className="space-y-4 animate-in fade-in duration-300">
-            <h3 className="text-xl font-bold text-slate-400">Ritirata (Run/Avoid)</h3>
-            <p className="text-slate-300">Puoi fuggire da una stanza intera se è troppo pericolosa.</p>
-            <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 space-y-3">
-              <p className="text-sm text-slate-200 font-bold">Meccanica di Spostamento:</p>
-              <ul className="list-disc pl-5 text-slate-400 space-y-2 text-xs">
-                  <li>Tutte le 4 carte della stanza vengono rimesse <span className="text-orange-400 font-bold">IN FONDO</span> al mazzo dungeon.</li>
-                  <li>Le carte mantengono l'ordine esatto in cui si trovano sul tavolo (da sinistra a destra).</li>
-                  <li>Vengono aggiunte <span className="italic">dopo</span> l'ultima carta attualmente presente nel mazzo.</li>
-                  <li>Le rivedrai solo alla fine della partita, nello stesso ordine in cui le hai lasciate.</li>
+            <h3 className="text-xl font-bold text-slate-400">Ritirata (Flee / Avoid)</h3>
+            <p className="text-slate-300">Puoi fuggire da una stanza intera se le carte presenti sono troppo pericolose per il tuo equipaggiamento attuale.</p>
+            
+            <div className="bg-slate-800/50 p-5 rounded-2xl border border-blue-500/30 space-y-4 shadow-lg shadow-blue-900/10">
+              <p className="text-sm text-blue-400 font-black uppercase tracking-widest">Meccanica di Spostamento delle Carte:</p>
+              <ul className="list-disc pl-5 text-slate-300 space-y-3 text-sm">
+                  <li>Tutte le 4 carte attualmente presenti nella stanza vengono rimosse dal tavolo e rimesse <span className="text-blue-400 font-bold">IN FONDO</span> al mazzo del dungeon.</li>
+                  <li><strong className="text-white">Conservazione dell'Ordine:</strong> Le carte non vengono rimescolate tra loro. Mantengono l'ordine esatto in cui apparivano nella stanza, da <span className="text-orange-400 font-bold">sinistra a destra</span>.</li>
+                  <li>Questo significa che se nel mazzo sono rimaste 10 carte, le 4 carte della fuga diventeranno le carte dalla 11ª alla 14ª.</li>
+                  <li><strong className="text-white">Memoria del Dungeon:</strong> Incontrerai di nuovo queste esatte carte alla fine della partita, nello stesso ordine sequenziale in cui le hai viste oggi.</li>
               </ul>
             </div>
+
+            <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
+               <p className="text-sm text-slate-400 italic">"Fuggire non elimina il pericolo, lo rimanda soltanto. Preparati a riaffrontare quel mostro 14 quando il mazzo sarà quasi esaurito."</p>
+            </div>
+
             <ul className="list-disc pl-5 text-slate-400 space-y-2 text-sm">
-                <li>Si pesca immediatamente una nuova stanza da 4 carte.</li>
-                <li><strong>Cooldown:</strong> Non puoi fuggire da due stanze consecutive. Devi completare almeno una stanza normalmente (fino al carry-over) per riattivare la fuga.</li>
+                <li>Si pesca immediatamente una nuova stanza completa da 4 carte.</li>
+                <li><strong>Cooldown:</strong> La Fuga ha un tempo di ricarica. Non puoi fuggire da due stanze consecutive. Devi svuotare la stanza successiva quasi completamente (lasciando 0 o 1 carta per il carry-over) per riattivare l'abilità.</li>
             </ul>
           </div>
         );
@@ -111,16 +117,22 @@ const RulesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <button onClick={() => setExampleVisible(1)} className="text-blue-400 text-sm hover:underline">Vedi esito →</button>
               {exampleVisible === 1 && <p className="mt-2 text-emerald-400 text-sm font-bold">Hai affrontato 3 carte. L'ultima (un Mostro 13) resta lì. Peschi 3 nuove carte. Ora la stanza ha il Mostro 13 e 3 carte nuove.</p>}
             </div>
+            <div className="p-4 bg-slate-800 rounded-lg border border-slate-700">
+              <p className="font-bold mb-2 text-slate-200">Ordine Fuga</p>
+              <button onClick={() => setExampleVisible(2)} className="text-blue-400 text-sm hover:underline">Vedi esito →</button>
+              {exampleVisible === 2 && <p className="mt-2 text-blue-400 text-sm font-bold">In stanza hai: Mostro 10, Pozione 4, Arma 8, Mostro 12. Se fuggi, queste carte andranno in fondo al mazzo esattamente in questo ordine. Le pescherai di nuovo alla fine della partita così come sono.</p>}
+            </div>
           </div>
         );
       case "Casi Ambigui":
         return (
-          <div className="space-y-4 h-[400px] overflow-y-auto pr-2 animate-in fade-in duration-300">
+          <div className="space-y-4 h-[400px] overflow-y-auto pr-2 animate-in fade-in duration-300 scrollbar-hide">
             {[
-              { q: "Cosa succede se la quarta carta è una pozione?", a: "Resta sul tavolo. La prossima stanza inizierà con quella pozione più 3 carte nuove. Un ottimo vantaggio strategico!" },
+              { q: "Cosa succede se la quarta carta è una pozione?", a: "Resta sul tavolo come Carry-over. La prossima stanza inizierà con quella pozione più 3 carte nuove." },
               { q: "Posso scartare una carta se non ho armi?", a: "No. Devi decidere se affrontarla a mani nude o usare la Fuga (se disponibile)." },
-              { q: "Perché la Fuga mette le carte in fondo?", a: "Perché non le hai sconfitte. Torneranno alla fine del dungeon, probabilmente quando sarai più debole o senza armi. È un prestito di tempo." },
-              { q: "Cosa succede se finisce il mazzo?", a: "Se riesci a svuotare l'ultima stanza rimasta, hai vinto!" }
+              { q: "Perché la Fuga mette le carte in fondo e non le mescola?", a: "È una scelta di design: premia i giocatori che hanno memoria. Sapere esattamente cosa ti aspetta nelle ultime 4-8 carte del mazzo è fondamentale per vincere la partita." },
+              { q: "Posso fuggire da una stanza di carry-over?", a: "Sì, se ci sono almeno 2 carte totali (la carta portata e le 3 nuove) e se il cooldown è terminato." },
+              { q: "Cosa succede se fuggo quando mancano meno di 4 carte nel mazzo?", a: "Le carte della stanza vanno comunque in fondo e peschi quello che rimane. Se il mazzo è vuoto, fuggire rimetterà solo le carte attuali in coda e te le restituirà subito come nuova stanza." }
             ].map((item, i) => (
               <div key={i} className="border-b border-slate-700 pb-3">
                 <p className="font-bold text-red-400 text-sm mb-1">Q: {item.q}</p>
@@ -147,7 +159,7 @@ const RulesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           ))}
         </div>
 
-        <div className="p-8 flex-1 overflow-y-auto bg-gradient-to-b from-slate-900 to-slate-950">{renderContent()}</div>
+        <div className="p-8 flex-1 overflow-y-auto bg-gradient-to-b from-slate-900 to-slate-950 scrollbar-hide">{renderContent()}</div>
 
         <div className="p-6 border-t border-slate-800 text-right bg-slate-900/50">
           <button onClick={onClose} className="px-8 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold transition-all text-xs uppercase tracking-widest">Capito</button>

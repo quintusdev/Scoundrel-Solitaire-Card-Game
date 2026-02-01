@@ -15,7 +15,7 @@
   --text-muted: #94a3b8;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;600;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600;900&display=swap');
 
 body {
   font-family: 'Inter', sans-serif;
@@ -205,4 +205,12 @@ body {
     transform: translateY(0) scale(1) rotate(0); 
     filter: blur(0);
   }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

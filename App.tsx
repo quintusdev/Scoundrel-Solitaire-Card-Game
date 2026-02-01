@@ -6,6 +6,7 @@ import HUD from './components/HUD';
 import Room from './components/Room';
 import RulesModal from './components/RulesModal';
 import Toast from './components/Toast';
+import TutorialOverlay from './components/TutorialOverlay';
 
 const INITIAL_HEALTH = 20;
 const POTION_HEAL = 7;
@@ -76,6 +77,10 @@ const App: React.FC = () => {
   const [visualEffect, setVisualEffect] = useState<string | null>(null);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [explosions, setExplosions] = useState<Explosion[]>([]);
+  
+  // Tutorial State
+  const [isTutorial, setIsTutorial] = useState(false);
+  const [tutorialStep, setTutorialStep] = useState(0);
 
   // Load global stats
   useEffect(() => {
@@ -124,6 +129,7 @@ const App: React.FC = () => {
   };
 
   const updateGlobalStats = (result: "won" | "lost", session: SessionStats) => {
+    if (isTutorial) return; // Don't record tutorial games
     setGlobalStats(prev => {
       const next = { ...prev };
       next.totalGames += 1;
@@ -176,9 +182,27 @@ const App: React.FC = () => {
     return next;
   };
 
-  const startNewGame = (mode: GameMode) => {
-    const newDeck = createDeck();
-    const firstRoom = newDeck.splice(0, 4);
+  const startNewGame = (mode: GameMode, forceTutorial: boolean = false) => {
+    setIsTutorial(forceTutorial);
+    setTutorialStep(0);
+
+    let newDeck: Card[];
+    let firstRoom: Card[];
+
+    if (forceTutorial) {
+      // Scripted Tutorial Deck
+      newDeck = createDeck(); // Fill with others
+      firstRoom = [
+        { id: 'tut-m1', suit: 'Fiori', rank: '5', value: 5 },
+        { id: 'tut-w1', suit: 'Quadri', rank: '8', value: 8 },
+        { id: 'tut-p1', suit: 'Cuori', rank: '4', value: 4 },
+        { id: 'tut-m2', suit: 'Picche', rank: '7', value: 7 },
+      ];
+    } else {
+      newDeck = createDeck();
+      firstRoom = newDeck.splice(0, 4);
+    }
+
     setGameState({
       status: "playing",
       mode,
@@ -195,12 +219,19 @@ const App: React.FC = () => {
       enemiesDefeated: 0,
       sessionStats: { ...INITIAL_SESSION_STATS },
     });
-    addToast(`Dungeon generato (${mode.toUpperCase()})`, "success");
+    addToast(forceTutorial ? "Modalità Addestramento" : `Dungeon generato (${mode.toUpperCase()})`, "success");
   };
 
   const validateAction = (actionType: string): ActionResponse => {
     const { selectedCardId, room, equippedWeapon, potions, health, fugaDisponibile } = gameState;
     const selectedCard = room.find(c => c.id === selectedCardId);
+
+    // Tutorial locks
+    if (isTutorial) {
+       if (tutorialStep === 1 && actionType !== "SELECT_CARD") return { ok: false, severity: "block", message: "Seleziona il mostro prima!" };
+       if (tutorialStep === 2 && actionType !== "UNARMED") return { ok: false, severity: "block", message: "Usa Mani Nude per ora." };
+       if (tutorialStep === 4 && actionType !== "WEAPON") return { ok: false, severity: "block", message: "Equipaggia l'arma ora." };
+    }
 
     if (actionType === "FUGA") {
       if (!fugaDisponibile) return { ok: false, severity: "block", message: "Non puoi fuggire da due stanze consecutive!" };
@@ -245,6 +276,12 @@ const App: React.FC = () => {
     if (!validation.ok) {
       addToast(validation.message, validation.severity === "block" ? "error" : "warning");
       return;
+    }
+
+    // Advance Tutorial
+    if (isTutorial) {
+      if (tutorialStep === 2 && actionType === "UNARMED") setTutorialStep(3);
+      if (tutorialStep === 4 && actionType === "WEAPON") setTutorialStep(5);
     }
 
     setGameState(prev => {
@@ -297,7 +334,7 @@ const App: React.FC = () => {
             next.sessionStats.weaponsEquipped += 1;
             next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
             addFloatingText("EQUIP!", "equip");
-            triggerExplosion("#3b82f6"); // Blue explosion for successful equip
+            triggerExplosion("#3b82f6"); 
             triggerEffect("flash-blue animate-weapon-pop");
           } else {
             if (prev.equippedWeapon && prev.equippedWeapon.value >= selectedCard.value) {
@@ -340,63 +377,94 @@ const App: React.FC = () => {
     });
   };
 
+  const handleTutorialStepAction = (id: string) => {
+    const selectedCard = gameState.room.find(c => c.id === id);
+    if (isTutorial) {
+      if (tutorialStep === 1 && (selectedCard?.suit === 'Fiori' || selectedCard?.suit === 'Picche')) {
+        setTutorialStep(2);
+      } else if (tutorialStep === 3 && selectedCard?.suit === 'Quadri') {
+        setTutorialStep(4);
+      }
+    }
+    setGameState(prev => ({ ...prev, selectedCardId: id === prev.selectedCardId ? null : id }));
+  };
+
   if (gameState.status === "start") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white font-inter">
-        <h1 className="text-8xl title-font font-bold mb-8 text-red-600 tracking-tighter uppercase drop-shadow-[0_0_25px_rgba(220,38,38,0.5)]">Scoundrel</h1>
-        <p className="text-slate-400 italic mb-12 text-center max-w-md">Un mazzo di carte. Un eroe. Un dungeon senza uscita. Solo la tua astuzia può salvarti.</p>
-        
-        <div className="flex flex-col gap-4 w-full max-w-sm">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-             <button onClick={() => startNewGame("normal")} className="px-8 py-5 bg-red-600 hover:bg-red-500 transition-all font-black rounded-2xl border-b-4 border-red-900 active:border-b-0 active:translate-y-1 text-sm tracking-widest">NORMAL</button>
-             <button onClick={() => startNewGame("easy")} className="px-8 py-5 bg-slate-800 hover:bg-slate-700 transition-all font-black rounded-2xl border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 text-sm tracking-widest">EASY</button>
-          </div>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white font-inter overflow-hidden relative">
+        {/* Animated Background Orbs */}
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-900/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] animate-pulse delay-700" />
+
+        <div className="z-10 text-center flex flex-col items-center">
+          <h1 className="text-8xl md:text-9xl title-font font-bold mb-4 text-red-600 tracking-tighter uppercase drop-shadow-[0_0_35px_rgba(220,38,38,0.6)]">Scoundrel</h1>
+          <p className="text-slate-400 italic mb-12 text-center max-w-md tracking-wide px-4">Sopravvivi al mazzo. Ogni carta è una scelta tra vita e morte.</p>
           
-          <div className="flex flex-col gap-2">
-            <button onClick={() => setShowStats(true)} className="w-full py-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-xl font-bold transition-all text-xs tracking-widest uppercase">📊 Statistiche Globali</button>
-            <button onClick={() => setShowRules(true)} className="w-full py-4 text-slate-500 hover:text-white transition-colors underline underline-offset-4 text-xs font-bold uppercase tracking-widest">📖 Regole</button>
+          <div className="flex flex-col gap-4 w-full max-w-sm px-4">
+            <div className="grid grid-cols-2 gap-4">
+               <button onClick={() => startNewGame("normal")} className="group relative overflow-hidden px-8 py-5 bg-red-600 hover:bg-red-500 transition-all font-black rounded-2xl border-b-4 border-red-900 active:border-b-0 active:translate-y-1 text-sm tracking-widest shadow-xl">
+                 <span className="relative z-10">NORMAL</span>
+                 <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+               </button>
+               <button onClick={() => startNewGame("easy")} className="px-8 py-5 bg-slate-800 hover:bg-slate-700 transition-all font-black rounded-2xl border-b-4 border-slate-900 active:border-b-0 active:translate-y-1 text-sm tracking-widest">EASY</button>
+            </div>
+            
+            <button 
+              onClick={() => startNewGame("normal", true)} 
+              className="w-full py-5 bg-blue-600 hover:bg-blue-500 transition-all font-black rounded-2xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 text-sm tracking-widest uppercase flex items-center justify-center gap-2"
+            >
+              🎓 Tutorial Interattivo
+            </button>
+
+            <div className="flex flex-col gap-2 mt-4">
+              <button onClick={() => setShowStats(true)} className="w-full py-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-xl font-bold transition-all text-xs tracking-widest uppercase">📊 Statistiche Globali</button>
+              <button onClick={() => setShowRules(true)} className="w-full py-4 text-slate-500 hover:text-white transition-colors underline underline-offset-4 text-xs font-bold uppercase tracking-widest">📖 Manuale Completo</button>
+            </div>
           </div>
         </div>
 
         {showRules && <RulesModal onClose={() => setShowRules(false)} />}
         {showStats && (
-          <div className="fixed inset-0 z-[300] bg-black/90 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 p-8 rounded-3xl w-full max-w-2xl shadow-2xl">
-              <h2 className="text-3xl font-black mb-8 title-font tracking-widest text-red-500">RECORD DEL DUNGEON</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Partite Totali</span>
-                  <span className="text-2xl font-bold">{globalStats.totalGames}</span>
+          <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border-2 border-slate-700 p-8 rounded-[40px] w-full max-w-2xl shadow-2xl relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4">
+                <button onClick={() => setShowStats(false)} className="w-10 h-10 bg-slate-800 rounded-full flex items-center justify-center text-slate-400 hover:text-white transition-colors">✕</button>
+              </div>
+              <h2 className="text-4xl font-black mb-10 title-font tracking-widest text-red-500 uppercase">Sala dei Record</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-10">
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Partite Totali</span>
+                  <span className="text-3xl font-bold">{globalStats.totalGames}</span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Vittorie</span>
-                  <span className="text-2xl font-bold text-emerald-500">{globalStats.wins}</span>
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Vittorie</span>
+                  <span className="text-3xl font-bold text-emerald-500">{globalStats.wins}</span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Win Rate</span>
-                  <span className="text-2xl font-bold">{globalStats.totalGames > 0 ? Math.round((globalStats.wins/globalStats.totalGames)*100) : 0}%</span>
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Win Rate</span>
+                  <span className="text-3xl font-bold">{globalStats.totalGames > 0 ? Math.round((globalStats.wins/globalStats.totalGames)*100) : 0}%</span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Max Stanze</span>
-                  <span className="text-2xl font-bold">{globalStats.bestRun.rooms}</span>
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Max Stanze</span>
+                  <span className="text-3xl font-bold">{globalStats.bestRun.rooms}</span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Max Nemici</span>
-                  <span className="text-2xl font-bold">{globalStats.bestRun.enemies}</span>
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Max Nemici</span>
+                  <span className="text-3xl font-bold">{globalStats.bestRun.enemies}</span>
                 </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Danni Totali</span>
-                  <span className="text-2xl font-bold text-red-400">{globalStats.totalDamageTaken}</span>
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800">
+                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Danni Totali</span>
+                  <span className="text-3xl font-bold text-red-400">{globalStats.totalDamageTaken}</span>
                 </div>
               </div>
               <div className="flex gap-4">
                 <button onClick={() => {
-                  if(confirm("Azzerare tutto?")) {
+                  if(confirm("Azzerare tutto? Questa azione è irreversibile.")) {
                     setGlobalStats(INITIAL_GLOBAL_STATS);
                     localStorage.removeItem(STATS_KEY);
                   }
-                }} className="flex-1 py-4 bg-red-950/30 text-red-500 font-bold rounded-xl border border-red-900/50 hover:bg-red-900/40 transition-all text-xs uppercase">Resetta</button>
-                <button onClick={() => setShowStats(false)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 font-bold rounded-xl transition-all text-xs uppercase tracking-widest">Chiudi</button>
+                }} className="px-8 py-4 bg-red-950/30 text-red-500 font-bold rounded-2xl border border-red-900/50 hover:bg-red-900/40 transition-all text-xs uppercase tracking-widest">Svuota Memoria</button>
+                <button onClick={() => setShowStats(false)} className="flex-1 py-4 bg-slate-800 hover:bg-slate-700 font-bold rounded-2xl transition-all text-xs uppercase tracking-widest">Esci</button>
               </div>
             </div>
           </div>
@@ -407,25 +475,25 @@ const App: React.FC = () => {
 
   if (gameState.status === "won" || gameState.status === "lost") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white">
-        <div className={`p-12 rounded-[40px] border-2 flex flex-col items-center w-full max-w-lg shadow-2xl ${gameState.status === "won" ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-red-900/50 bg-red-950/10'}`}>
-            <h1 className={`text-7xl title-font font-black mb-4 uppercase tracking-tighter ${gameState.status === "won" ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.5)]' : 'text-red-600 drop-shadow-[0_0_15px_rgba(220,38,38,0.5)]'}`}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white animate-in fade-in duration-500">
+        <div className={`p-12 rounded-[50px] border-2 flex flex-col items-center w-full max-w-xl shadow-2xl relative overflow-hidden ${gameState.status === "won" ? 'border-emerald-500/50 bg-emerald-950/10' : 'border-red-900/50 bg-red-950/10'}`}>
+            <h1 className={`text-8xl title-font font-black mb-4 uppercase tracking-tighter text-center ${gameState.status === "won" ? 'text-emerald-400 drop-shadow-[0_0_20px_rgba(52,211,153,0.5)]' : 'text-red-600 drop-shadow-[0_0_20px_rgba(220,38,38,0.5)]'}`}>
                 {gameState.status === "won" ? "VITTORIA" : "SCONFITTA"}
             </h1>
-            <p className="text-slate-400 mb-10 text-center italic">{gameState.status === "won" ? "Hai ripulito il dungeon e ne sei uscito con onore." : "Il dungeon ha reclamato la tua anima. Ritenta ancora."}</p>
+            <p className="text-slate-400 mb-12 text-center italic text-lg max-w-xs">{gameState.status === "won" ? "Hai ripulito il dungeon. Il tuo nome vivrà per sempre." : "Le ombre ti hanno avvolto. Un'altra vita sacrificata."}</p>
             
-            <div className="grid grid-cols-2 gap-4 w-full mb-10">
-              <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
-                <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Mostri Sconfitti</span>
-                <span className="text-2xl font-bold">{gameState.sessionStats.enemiesDefeated}</span>
+            <div className="grid grid-cols-2 gap-6 w-full mb-12">
+              <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
+                <span className="block text-[10px] text-slate-500 font-black uppercase mb-2 tracking-widest">Nemici Sconfitti</span>
+                <span className="text-4xl font-bold">{gameState.sessionStats.enemiesDefeated}</span>
               </div>
-              <div className="bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
-                <span className="block text-[10px] text-slate-500 font-black uppercase mb-1">Stanze Esplorate</span>
-                <span className="text-2xl font-bold">{gameState.sessionStats.roomsReached}</span>
+              <div className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800">
+                <span className="block text-[10px] text-slate-500 font-black uppercase mb-2 tracking-widest">Stanze Esplorate</span>
+                <span className="text-4xl font-bold">{gameState.sessionStats.roomsReached}</span>
               </div>
             </div>
 
-            <button onClick={() => setGameState(prev => ({ ...prev, status: "start" }))} className="w-full py-5 bg-white text-slate-950 font-black rounded-2xl hover:scale-105 active:scale-95 transition-all text-sm tracking-widest uppercase">TORNA ALLA HOME</button>
+            <button onClick={() => setGameState(prev => ({ ...prev, status: "start" }))} className="w-full py-6 bg-white text-slate-950 font-black rounded-3xl hover:scale-[1.02] active:scale-[0.98] transition-all text-lg tracking-widest uppercase shadow-xl">RITORNA AL VILLAGGIO</button>
         </div>
       </div>
     );
@@ -441,6 +509,7 @@ const App: React.FC = () => {
 
   return (
     <div className={`min-h-screen flex flex-col p-4 md:p-8 bg-slate-950 transition-all duration-300 relative overflow-hidden ${visualEffect?.includes('blood-vignette') ? 'blood-vignette' : ''}`}>
+      {/* VFX Layers */}
       <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : visualEffect?.includes('flash-red') ? 'flash-red' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''}`} />
       
       {explosions.map(exp => (
@@ -459,23 +528,58 @@ const App: React.FC = () => {
         </div>
       ))}
 
+      {isTutorial && (
+        <TutorialOverlay 
+          step={tutorialStep} 
+          onNext={() => setTutorialStep(s => s + 1)} 
+          onComplete={() => setIsTutorial(false)} 
+        />
+      )}
+
       <div className={`flex-1 flex flex-col max-w-6xl mx-auto w-full transition-transform duration-300 ${currentEffectClass || ''}`}>
         <HUD state={gameState} effectClass={currentEffectClass} />
-        <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(prev => ({ ...prev, selectedCardId: id === prev.selectedCardId ? null : id }))} />
+        <Room 
+          cards={gameState.room} 
+          selectedId={gameState.selectedCardId} 
+          onSelect={handleTutorialStepAction} 
+        />
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 sticky bottom-8 bg-slate-900/90 backdrop-blur-xl p-5 rounded-3xl border border-slate-700 shadow-2xl z-40">
-          <button onClick={() => applyAction("UNARMED")} className="py-4 bg-orange-600 hover:bg-orange-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-900 active:border-b-0 active:translate-y-1">MANI NUDE</button>
-          <button onClick={() => applyAction("WEAPON")} className="py-4 bg-blue-600 hover:bg-blue-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-900 active:border-b-0 active:translate-y-1">USA/EQUIP ARMA</button>
-          <button onClick={() => {
-              const selectedCard = gameState.room.find(c => c.id === gameState.selectedCardId);
-              if (selectedCard?.suit === "Cuori") applyAction("POTION_ROOM");
-              else applyAction("POTION_STOCK");
-            }} className="py-4 bg-emerald-600 hover:bg-emerald-500 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-900 active:border-b-0 active:translate-y-1">USA POZIONE</button>
-          <button onClick={() => applyAction("FUGA")} className={`py-4 transition-all rounded-xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-900 hover:bg-slate-600' : 'bg-slate-900 text-slate-600 border-black cursor-not-allowed opacity-50'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>{gameState.fugaDisponibile ? "RITIRATA" : "COOLDOWN"}</button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 sticky bottom-8 bg-slate-900/95 backdrop-blur-2xl p-6 rounded-[40px] border border-slate-700/50 shadow-2xl z-40">
+          <button 
+            id="unarmed-btn"
+            onClick={() => applyAction("UNARMED")} 
+            className="py-5 bg-orange-600 hover:bg-orange-500 transition-all rounded-2xl font-black uppercase text-xs tracking-[0.2em] border-b-4 border-orange-900 active:border-b-0 active:translate-y-1"
+          >
+            MANI NUDE
+          </button>
+          <button 
+            id="weapon-btn"
+            onClick={() => applyAction("WEAPON")} 
+            className="py-5 bg-blue-600 hover:bg-blue-500 transition-all rounded-2xl font-black uppercase text-xs tracking-[0.2em] border-b-4 border-blue-900 active:border-b-0 active:translate-y-1"
+          >
+            USA/EQUIP ARMA
+          </button>
+          <button 
+            onClick={() => {
+                const selectedCard = gameState.room.find(c => c.id === gameState.selectedCardId);
+                if (selectedCard?.suit === "Cuori") applyAction("POTION_ROOM");
+                else applyAction("POTION_STOCK");
+              }} 
+            className="py-5 bg-emerald-600 hover:bg-emerald-500 transition-all rounded-2xl font-black uppercase text-xs tracking-[0.2em] border-b-4 border-emerald-900 active:border-b-0 active:translate-y-1"
+          >
+            USA POZIONE
+          </button>
+          <button 
+            onClick={() => applyAction("FUGA")} 
+            className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-[0.2em] border-b-4 active:border-b-0 active:translate-y-1 ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-900 hover:bg-slate-600' : 'bg-slate-900 text-slate-600 border-black cursor-not-allowed opacity-50'}`} 
+            disabled={!gameState.fugaDisponibile || gameState.room.length < 2}
+          >
+            {gameState.fugaDisponibile ? "RITIRATA" : "COOLDOWN"}
+          </button>
         </div>
       </div>
 
-      <button onClick={() => setShowRules(true)} className="fixed bottom-6 right-6 bg-red-600 text-white w-14 h-14 flex items-center justify-center rounded-full shadow-lg border-2 border-red-400 hover:scale-110 transition-transform z-50 text-xl font-black">📖</button>
+      <button onClick={() => setShowRules(true)} className="fixed bottom-6 right-6 bg-red-600 text-white w-14 h-14 flex items-center justify-center rounded-full shadow-lg border-2 border-red-400 hover:scale-110 active:scale-95 transition-all z-50 text-xl font-black">📖</button>
       
       <div className="fixed top-6 right-6 flex flex-col gap-3 z-[100] pointer-events-none">
         {toasts.map(t => <Toast key={t.id} message={t.message} kind={t.kind} />)}
