@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card as CardType } from '../types';
-import { getSuitIcon } from '../constants';
+import { getSuitIcon, getCardType, generatePixelArtSVG } from '../constants';
 
 interface CardProps {
   card: CardType;
@@ -12,7 +12,24 @@ interface CardProps {
 
 const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay }) => {
   const isRed = card.suit === "Cuori" || card.suit === "Quadri";
-  const typeLabel = card.suit === "Cuori" ? "Pozione" : card.suit === "Quadri" ? "Arma" : "Mostro";
+  const type = getCardType(card.suit);
+  const typeLabel = type === "potion" ? "Pozione" : type === "weapon" ? "Arma" : "Mostro";
+  
+  // Calcolo Rarity Glow
+  const getRarityClass = () => {
+    if (card.value >= 13) return "glow-strong";
+    if (card.value >= 10) return "glow-medium";
+    if (card.value >= 6) return "glow-soft";
+    return "";
+  };
+
+  const getPowerIndicators = () => {
+    const count = card.value <= 5 ? 1 : card.value <= 9 ? 2 : card.value <= 12 ? 3 : 4;
+    const symbol = type === "monster" ? "💀" : type === "weapon" ? "⚔️" : "✨";
+    return Array(count).fill(symbol).join("");
+  };
+
+  const pixelArt = generatePixelArtSVG(type, card.value);
 
   return (
     <div 
@@ -21,35 +38,42 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay }
       className={`
         relative w-full aspect-[2/3] max-w-[180px] rounded-2xl cursor-pointer 
         transition-all duration-300 transform border-2 card-animate
-        ${isSelected ? 'card-selected z-10' : 'border-slate-800 bg-slate-900 hover:border-slate-600'}
-        flex flex-col items-center justify-between p-4 select-none
+        card-${type} ${getRarityClass()}
+        ${isSelected ? 'card-selected z-20 scale-105' : 'border-slate-800 bg-slate-900 hover:border-slate-600'}
+        flex flex-col items-center justify-between p-4 select-none overflow-hidden
       `}
     >
       {/* Top Corner Info */}
-      <div className={`w-full flex justify-between font-black text-xl ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
+      <div className={`card-corner w-full flex justify-between font-black text-xl ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
         <span>{card.rank}</span>
         <span>{getSuitIcon(card.suit)}</span>
       </div>
       
-      {/* Center Art/Icon */}
-      <div className="flex flex-col items-center text-center">
-        <span className={`text-5xl mb-3 drop-shadow-md ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
-          {getSuitIcon(card.suit)}
+      {/* Central Pixel Art */}
+      <div 
+        className="card-art" 
+        dangerouslySetInnerHTML={{ __html: pixelArt }} 
+      />
+
+      {/* Power Indicators & Value */}
+      <div className="flex flex-col items-center text-center z-10">
+        <div className="text-[8px] mb-1 opacity-80 tracking-widest text-white/50">
+          {getPowerIndicators()}
+        </div>
+        <span className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-black mb-0.5">{typeLabel}</span>
+        <span className={`text-4xl font-black ${isSelected ? 'text-yellow-400' : 'text-white'}`}>
+          {card.value}
         </span>
-        <span className="text-[9px] uppercase tracking-[0.2em] text-slate-500 font-black mb-1">{typeLabel}</span>
-        <span className={`text-4xl font-black ${isSelected ? 'text-yellow-400' : 'text-white'}`}>{card.value}</span>
       </div>
 
       {/* Bottom Corner Info (Inverted) */}
-      <div className={`w-full flex justify-between font-black text-xl rotate-180 ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
+      <div className={`card-corner w-full flex justify-between font-black text-xl rotate-180 ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
         <span>{card.rank}</span>
         <span>{getSuitIcon(card.suit)}</span>
       </div>
 
-      {/* Selection Glow Overlay */}
-      {isSelected && (
-        <div className="absolute inset-0 bg-yellow-400/5 rounded-2xl pointer-events-none" />
-      )}
+      {/* Overlay Background Pattern per tipo */}
+      <div className={`absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/pixel-weave.png')]`} />
     </div>
   );
 };

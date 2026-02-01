@@ -18,7 +18,7 @@ const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect }) => {
             card={card} 
             isSelected={selectedId === card.id} 
             onClick={() => onSelect(card.id)} 
-            animationDelay={`${index * 0.1}s`}
+            animationDelay={`${index * 0.15}s`}
           />
         </div>
       ))}
