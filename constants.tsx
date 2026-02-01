@@ -22,15 +22,25 @@ export const getCardType = (suit: Suit) => {
 
 /**
  * Genera un SVG Pixel Art deterministico basato su tipo e valore.
- * Griglia 16x16
+ * Include artefatti glitch e rumore basati su un seed.
  */
 export const generatePixelArtSVG = (type: string, value: number): string => {
   const size = 16;
   const pixels: { x: number, y: number, color: string }[] = [];
   
+  // Seed deterministico basato su tipo e valore
+  const stringSeed = type.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seed = (stringSeed + value) * 1337;
+
+  const seededRandom = (s: number) => {
+    const x = Math.sin(seed + s) * 10000;
+    return x - Math.floor(x);
+  };
+
   const drawPixel = (x: number, y: number, color: string) => {
-    // Disegna speculare se necessario per i mostri per simmetria
-    pixels.push({ x, y, color });
+    if (x >= 0 && x < size && y >= 0 && y < size) {
+      pixels.push({ x, y, color });
+    }
   };
 
   const drawSymmetric = (x: number, y: number, color: string) => {
@@ -45,11 +55,14 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     const darkColor = value > 10 ? "#7f1d1d" : "#312e81";
     const eyeColor = "#ffffff";
 
-    // Silhouette Base (Teschio/Corpo)
+    // Silhouette Base
     for (let y = 4; y <= 12; y++) {
       let width = y < 6 ? 2 : y > 10 ? 3 : 5;
       for (let x = 8 - width; x <= 7; x++) {
-        drawSymmetric(x, y, (x + y) % 3 === 0 ? darkColor : mainColor);
+        // Aggiunta di rumore nella texture del mostro
+        let color = (x + y) % 3 === 0 ? darkColor : mainColor;
+        if (seededRandom(x * y) > 0.92) color = "#ffffff22"; // Sottile glitch di texture
+        drawSymmetric(x, y, color);
       }
     }
 
@@ -57,7 +70,7 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     drawSymmetric(5, 7, eyeColor);
     if (value > 6) drawSymmetric(4, 7, eyeColor);
     
-    // Corna (si evolvono col valore)
+    // Corna
     if (value > 5) {
       drawSymmetric(3, 3, darkColor);
       drawSymmetric(3, 4, mainColor);
@@ -67,7 +80,7 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
       drawSymmetric(4, 3, darkColor);
     }
     
-    // Denti/Bocca
+    // Denti
     if (value > 8) {
       drawSymmetric(5, 11, eyeColor);
       drawSymmetric(7, 11, eyeColor);
@@ -79,27 +92,24 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     const hiltColor = "#d97706";
     const gemColor = value > 12 ? "#3b82f6" : "#b91c1c";
 
-    // Lama (si allunga col valore)
-    const bladeHeight = value; // Da 2 a 14
+    const bladeHeight = value;
     const startY = Math.max(1, 12 - bladeHeight);
     for (let y = startY; y <= 11; y++) {
-      drawPixel(7, y, bladeColor);
+      let bCol = bladeColor;
+      if (seededRandom(y) > 0.85) bCol = "#ffffff"; // Glitch di riflesso sulla lama
+      drawPixel(7, y, bCol);
       drawPixel(8, y, darkBlade);
     }
-    // Punta
     drawPixel(7, startY - 1, bladeColor);
 
-    // Guardia (elsa)
     const guardWidth = value > 10 ? 3 : 2;
     for (let x = 8 - guardWidth; x <= 7 + guardWidth; x++) {
       drawPixel(x, 12, hiltColor);
     }
 
-    // Impugnatura
     drawPixel(7, 13, "#451a03");
     drawPixel(8, 13, "#451a03");
     
-    // Pomolo/Gemma
     drawPixel(7, 14, gemColor);
     drawPixel(8, 14, gemColor);
 
@@ -108,7 +118,6 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     const liqColor = value > 10 ? "#ec4899" : "#10b981";
     const liqDark = value > 10 ? "#9d174d" : "#064e3b";
 
-    // Forma Ampolla
     const isSquare = value % 2 === 0;
     const fillHeight = Math.floor((value / 14) * 8) + 1;
 
@@ -120,23 +129,42 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
         
         let color = isEdge ? glassColor : (isLiquid ? liqColor : "#1e293b");
         if (isLiquid && (x + y) % 4 === 0) color = liqDark;
+        
+        // Glitch di effervescenza per pozioni forti
+        if (isLiquid && value > 9 && seededRandom(x + y * 10) > 0.9) color = "#ffffff";
+        
         drawPixel(x, y, color);
       }
     }
 
-    // Collo
     for (let y = 3; y <= 5; y++) {
       drawPixel(7, y, glassColor);
       drawPixel(8, y, glassColor);
     }
-    // Tappo
     drawPixel(7, 2, "#78350f");
     drawPixel(8, 2, "#78350f");
+  }
+
+  // --- AGGIUNTA ARTEFATTI VISIVI (GLITCH / RUMORE) ---
+  const artifactCount = 2 + Math.floor(value / 3);
+  for (let i = 0; i < artifactCount; i++) {
+    const rX = Math.floor(seededRandom(i * 100) * 16);
+    const rY = Math.floor(seededRandom(i * 200) * 16);
     
-    // Bollicine per valori alti
-    if (value > 9) {
-      drawPixel(5, 4, liqColor);
-      drawPixel(10, 3, liqColor);
+    // Non disegnare glitch sopra il centro se possibile, per mantenere leggibilità
+    const isNearCenter = rX >= 6 && rX <= 9 && rY >= 4 && rY <= 12;
+    
+    if (!isNearCenter || seededRandom(i * 50) > 0.7) {
+      const glitchColors = ["#ffffff11", "#ff000022", "#00ff0011", "#0000ff11"];
+      const colorIdx = Math.floor(seededRandom(i * 300) * glitchColors.length);
+      drawPixel(rX, rY, glitchColors[colorIdx]);
+      
+      // Linee di scansione glitch orizzontali casuali
+      if (seededRandom(i * 400) > 0.9) {
+        for (let lx = 0; lx < 4; lx++) {
+          drawPixel(rX + lx, rY, "#ffffff08");
+        }
+      }
     }
   }
 
@@ -145,7 +173,7 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
   ).join("");
 
   return `
-    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
       ${rects}
     </svg>
   `;

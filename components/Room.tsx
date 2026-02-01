@@ -8,9 +8,10 @@ interface RoomProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   isExiting?: boolean;
+  dyingCardId?: string | null;
 }
 
-const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false }) => {
+const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false, dyingCardId = null }) => {
   return (
     <div className="flex flex-row flex-nowrap gap-4 md:gap-8 flex-1 items-center justify-center overflow-x-auto pb-8 scrollbar-hide">
       {cards.map((card, index) => (
@@ -21,6 +22,7 @@ const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = fa
             onClick={() => onSelect(card.id)} 
             animationDelay={`${index * 0.1}s`}
             isExiting={isExiting}
+            isDying={dyingCardId === card.id}
           />
         </div>
       ))}

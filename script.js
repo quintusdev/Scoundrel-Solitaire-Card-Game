@@ -17,7 +17,6 @@ function triggerExplosion(color = "#ef4444") {
   overlay.innerHTML = `<div class="shockwave" style="border-color: ${color}; width: 100px; height: 100px; border-width: 4px; border-style: solid; border-radius: 50%; animation: shockwave-animate 0.8s ease-out forwards;"></div>`;
   document.body.appendChild(overlay);
   
-  // Aggiungi stile dinamico se non presente
   if (!document.getElementById('shockwave-style')) {
     const style = document.createElement('style');
     style.id = 'shockwave-style';
@@ -38,6 +37,14 @@ function generatePixelArtSVG(type, value) {
   const pixels = [];
   const size = 16;
   
+  // Seed deterministico
+  const stringSeed = type.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const seed = (stringSeed + value) * 1337;
+  const seededRandom = (s) => {
+    const x = Math.sin(seed + s) * 10000;
+    return x - Math.floor(x);
+  };
+
   const addPixel = (x, y, color) => pixels.push(`<rect x="${x}" y="${y}" width="1" height="1" fill="${color}" />`);
   const addSymmetric = (x, y, color) => {
     addPixel(x, y, color);
@@ -49,17 +56,16 @@ function generatePixelArtSVG(type, value) {
     const eyeColor = "#ffffff";
     const accentColor = value > 12 ? "#facc15" : "#4338ca";
 
-    // Silhouette (Head/Body)
     for (let y = 4; y <= 12; y++) {
       let width = (y < 6) ? 2 : (y > 10) ? 3 : 5;
       for (let x = 8 - width; x <= 7; x++) {
-        addSymmetric(x, y, (x+y) % 3 === 0 ? accentColor : bodyColor);
+        let color = (x+y) % 3 === 0 ? accentColor : bodyColor;
+        if (seededRandom(x * y) > 0.9) color = color + "aa"; // Texture glitch
+        addSymmetric(x, y, color);
       }
     }
-    // Eyes
     addSymmetric(5, 7, eyeColor);
     if (value > 7) addSymmetric(4, 7, eyeColor);
-    // Horns / Spikes (More as value increases)
     if (value > 5) addSymmetric(3, 3, accentColor);
     if (value > 9) addSymmetric(2, 2, accentColor);
     if (value > 12) addSymmetric(4, 2, "#ffffff");
@@ -69,20 +75,17 @@ function generatePixelArtSVG(type, value) {
     const hiltColor = "#d97706";
     const gemColor = value > 10 ? "#3b82f6" : "#b91c1c";
 
-    // Blade (Length depends on value)
     const bladeLen = Math.min(10, 3 + Math.floor(value / 1.5));
     const startY = 11 - bladeLen;
     for (let y = startY; y <= 11; y++) {
-      addPixel(7, y, bladeColor);
+      let bCol = seededRandom(y) > 0.8 ? "#ffffff" : bladeColor;
+      addPixel(7, y, bCol);
       addPixel(8, y, "#94a3b8");
     }
-    // Guard
     const guardW = value > 8 ? 3 : 2;
     for (let x = 8 - guardW; x <= 7 + guardW; x++) addPixel(x, 12, hiltColor);
-    // Handle
     addPixel(7, 13, "#451a03");
     addPixel(8, 13, "#451a03");
-    // Gem
     addPixel(7, 14, gemColor);
     addPixel(8, 14, gemColor);
 
@@ -90,22 +93,29 @@ function generatePixelArtSVG(type, value) {
     const glassColor = "#93c5fd";
     const liqColor = value > 10 ? "#ec4899" : "#10b981";
     
-    // Bottle Shape
     const fillH = Math.floor((value / 14) * 8) + 1;
     for (let y = 6; y <= 14; y++) {
       let w = (y < 8) ? 2 : (y > 12) ? 3 : 4;
       for (let x = 8 - w; x <= 7 + w; x++) {
         const isLiquid = y > (14 - fillH);
         const isEdge = x === 8 - w || x === 7 + w || y === 14;
-        addPixel(x, y, isEdge ? glassColor : (isLiquid ? liqColor : "#1e293b"));
+        let color = isEdge ? glassColor : (isLiquid ? liqColor : "#1e293b");
+        if (isLiquid && seededRandom(x + y * 5) > 0.92) color = "#ffffff";
+        addPixel(x, y, color);
       }
     }
-    // Neck & Cork
     addPixel(7, 5, glassColor); addPixel(8, 5, glassColor);
     addPixel(7, 4, "#78350f"); addPixel(8, 4, "#78350f");
   }
 
-  // Power Pips (Indicatori di potenza reali dentro l'SVG)
+  // Artefatti glitch extra
+  const artifactCount = 2 + Math.floor(value / 4);
+  for (let i = 0; i < artifactCount; i++) {
+    const rX = Math.floor(seededRandom(i * 10) * 16);
+    const rY = Math.floor(seededRandom(i * 20) * 16);
+    addPixel(rX, rY, "#ffffff11");
+  }
+
   const pips = value <= 5 ? 1 : value <= 9 ? 2 : value <= 12 ? 3 : 4;
   for (let i = 0; i < pips; i++) {
     addPixel(2 + i*2, 1, value > 12 ? "#facc15" : "#ffffff");
@@ -145,7 +155,6 @@ function renderRoom() {
     const type = getCardType(card.suit);
     const value = card.value;
     
-    // Determine Classes
     let rarityClass = "";
     if (value >= 13) rarityClass = "glow-strong";
     else if (value >= 10) rarityClass = "glow-medium";
@@ -186,7 +195,6 @@ function renderRoom() {
   });
 }
 
-// Helper types
 function getCardType(suit) {
   if (suit === "Cuori") return "potion";
   if (suit === "Quadri") return "weapon";
@@ -207,7 +215,6 @@ function getSuitIcon(suit) {
   }
 }
 
-// --- REST OF THE ENGINE (ADAPTED) ---
 function updateHUD() {
   const bar = document.getElementById("health-bar");
   const hpText = document.getElementById("health-text");
@@ -249,7 +256,6 @@ function updateHUD() {
   if (fleeBtn) fleeBtn.disabled = !gameState.fleeAvailable || gameState.room.length < 2;
 }
 
-// Stats manager connection (mockup for this example)
 const statsManager = {
   load() {},
   save() {},
@@ -374,10 +380,9 @@ function handleAction(type) {
     if (selected.suit === "Quadri") {
       gameState.equippedWeapon = selected; 
       removeCard(selected.id);
-      triggerExplosion("#3b82f6"); // Feedback per equipaggiamento
+      triggerExplosion("#3b82f6");
     } else if (gameState.equippedWeapon && gameState.equippedWeapon.value >= selected.value) {
       removeCard(selected.id);
-      // TRIGGER BLUE EXPLOSION ON WEAPON DEFEAT
       triggerExplosion("#3b82f6");
     }
   } else if (type === "potion" && selected.suit === "Cuori") {
@@ -390,13 +395,13 @@ function damage(v) {
   gameState.health = Math.max(0, gameState.health - v); 
   if (gameState.health <= 0) endGame("lose"); 
   updateHUD(); 
-  triggerExplosion("#ef4444"); // Feedback per danno
+  triggerExplosion("#ef4444");
 }
 
 function heal(v) { 
   gameState.health = Math.min(gameState.maxHealth, gameState.health + v); 
   updateHUD(); 
-  triggerExplosion("#10b981"); // Feedback per cura
+  triggerExplosion("#10b981");
 }
 
 function removeCard(id) { 

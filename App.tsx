@@ -52,6 +52,12 @@ interface Explosion {
   color: string;
 }
 
+interface Slash {
+  id: number;
+  x: number;
+  y: number;
+}
+
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>({
     status: "start",
@@ -77,7 +83,9 @@ const App: React.FC = () => {
   const [visualEffect, setVisualEffect] = useState<string | null>(null);
   const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
   const [explosions, setExplosions] = useState<Explosion[]>([]);
+  const [slashes, setSlashes] = useState<Slash[]>([]);
   const [isFleeing, setIsFleeing] = useState(false);
+  const [dyingCardId, setDyingCardId] = useState<string | null>(null);
   
   // Tutorial State
   const [isTutorial, setIsTutorial] = useState(false);
@@ -108,20 +116,28 @@ const App: React.FC = () => {
 
   const addFloatingText = (text: string, type: 'damage' | 'heal' | 'action' | 'equip', isUnarmed: boolean = false) => {
     const id = Date.now() + Math.random();
-    const x = 40 + Math.random() * 20; 
-    const y = 40 + Math.random() * 20; 
+    const x = 30 + Math.random() * 40; 
+    const y = 30 + Math.random() * 40; 
     setFloatingTexts(prev => [...prev, { id, text, type, x, y, isUnarmed }]);
     setTimeout(() => {
       setFloatingTexts(prev => prev.filter(ft => ft.id !== id));
     }, 1200);
   };
 
-  const triggerExplosion = (color: string = "#ef4444") => {
+  const triggerExplosion = (x: number = 50, y: number = 50, color: string = "#ef4444") => {
     const id = Date.now() + Math.random();
-    setExplosions(prev => [...prev, { id, x: 50, y: 50, color }]);
+    setExplosions(prev => [...prev, { id, x, y, color }]);
     setTimeout(() => {
       setExplosions(prev => prev.filter(e => e.id !== id));
     }, 800);
+  };
+
+  const triggerSlash = (x: number = 50, y: number = 50) => {
+    const id = Date.now() + Math.random();
+    setSlashes(prev => [...prev, { id, x, y }]);
+    setTimeout(() => {
+      setSlashes(prev => prev.filter(s => s.id !== id));
+    }, 300);
   };
 
   const triggerEffect = (effect: string) => {
@@ -192,7 +208,7 @@ const App: React.FC = () => {
 
     if (forceTutorial) {
       // Scripted Tutorial Deck
-      newDeck = createDeck(); // Fill with others
+      newDeck = createDeck(); 
       firstRoom = [
         { id: 'tut-m1', suit: 'Fiori', rank: '5', value: 5 },
         { id: 'tut-w1', suit: 'Quadri', rank: '8', value: 8 },
@@ -284,7 +300,6 @@ const App: React.FC = () => {
       triggerEffect("flash-blue");
       addToast("Fuga! Carte rimesse in fondo al mazzo.", "warning");
       
-      // Delay the actual state update for the animation to play
       setTimeout(() => {
         setGameState(prev => {
           let next = { ...prev };
@@ -308,11 +323,12 @@ const App: React.FC = () => {
       if (tutorialStep === 4 && actionType === "WEAPON") setTutorialStep(5);
     }
 
-    setGameState(prev => {
-      let next = { ...prev };
-      const selectedCard = prev.room.find(c => c.id === prev.selectedCardId);
+    const selectedCardId = gameState.selectedCardId;
+    const selectedCard = gameState.room.find(c => c.id === selectedCardId);
 
-      if (actionType === "POTION_STOCK") {
+    if (actionType === "POTION_STOCK") {
+      setGameState(prev => {
+        let next = { ...prev };
         const actualHeal = Math.min(prev.maxHealth - prev.health, POTION_HEAL);
         next.health += actualHeal;
         next.potions -= 1;
@@ -321,70 +337,87 @@ const App: React.FC = () => {
         addFloatingText(`+${actualHeal} HP`, "heal");
         triggerEffect("animate-heal");
         return next;
+      });
+      return;
+    }
+
+    if (!selectedCard) return;
+
+    // Trigger Visuals First for Combat
+    if (actionType === "UNARMED" || (actionType === "WEAPON" && selectedCard.suit !== "Quadri")) {
+      const isWeaponAttack = actionType === "WEAPON";
+      const cardIdx = gameState.room.findIndex(c => c.id === selectedCardId);
+      const xPos = 20 + cardIdx * 20; 
+      
+      if (isWeaponAttack) {
+        triggerSlash(xPos, 50);
+        triggerExplosion(xPos, 50, "#3b82f6");
+        triggerEffect("impact-effect flash-blue animate-shake");
+      } else {
+        triggerExplosion(xPos, 50, "#ef4444");
+        triggerEffect("animate-shake-heavy flash-red-heavy blood-vignette");
       }
+    } else if (actionType === "POTION_ROOM") {
+      triggerEffect("animate-heal");
+    } else if (actionType === "WEAPON" && selectedCard.suit === "Quadri") {
+      triggerExplosion(50, 50, "#3b82f6");
+      triggerEffect("flash-blue animate-weapon-pop");
+    }
 
-      if (!selectedCard) return next;
+    // Handle Card Removal with Animation
+    setDyingCardId(selectedCard.id);
+    
+    setTimeout(() => {
+      setGameState(prev => {
+        let next = { ...prev };
+        const card = prev.room.find(c => c.id === selectedCardId);
+        if (!card) return next;
 
-      switch (actionType) {
-        case "UNARMED":
-          next.health -= selectedCard.value;
-          next.sessionStats.damageTaken += selectedCard.value;
-          next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
-          next.enemiesDefeated += 1;
-          next.sessionStats.enemiesDefeated += 1;
-          addFloatingText(`-${selectedCard.value} HP`, "damage", true);
-          triggerExplosion("#b91c1c");
-          triggerEffect("animate-shake-heavy flash-red-heavy blood-vignette");
-          addToast(`Mani Nude: Hai sconfitto il mostro ma subito ${selectedCard.value} danni!`, "warning");
-          break;
+        switch (actionType) {
+          case "UNARMED":
+            next.health -= card.value;
+            next.sessionStats.damageTaken += card.value;
+            next.room = prev.room.filter(c => c.id !== selectedCardId);
+            next.enemiesDefeated += 1;
+            next.sessionStats.enemiesDefeated += 1;
+            addFloatingText(`-${card.value} HP`, "damage", true);
+            break;
 
-        case "WEAPON":
-          if (selectedCard.suit === "Quadri") {
-            next.equippedWeapon = selectedCard;
-            next.sessionStats.weaponsEquipped += 1;
-            next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
-            addFloatingText("EQUIP!", "equip");
-            triggerExplosion("#3b82f6"); 
-            triggerEffect("flash-blue animate-weapon-pop");
-          } else {
-            if (prev.equippedWeapon && prev.equippedWeapon.value >= selectedCard.value) {
-              next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
+          case "WEAPON":
+            if (card.suit === "Quadri") {
+              next.equippedWeapon = card;
+              next.sessionStats.weaponsEquipped += 1;
+              next.room = prev.room.filter(c => c.id !== selectedCardId);
+              addFloatingText("EQUIP!", "equip");
+            } else {
+              next.room = prev.room.filter(c => c.id !== selectedCardId);
               next.enemiesDefeated += 1;
               next.sessionStats.enemiesDefeated += 1;
-              addFloatingText("SLASH!", "action");
-              triggerExplosion("#3b82f6"); 
-              triggerEffect("impact-effect flash-blue");
-            } else if (prev.mode === "easy") {
-              next.health -= 2;
-              next.sessionStats.damageTaken += 2;
-              next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
-              next.enemiesDefeated += 1;
-              next.sessionStats.enemiesDefeated += 1;
-              addFloatingText("-2 HP", "damage");
-              triggerEffect("animate-shake flash-red");
+              addFloatingText("SLAIN!", "action");
             }
-          }
-          break;
+            break;
 
-        case "POTION_ROOM":
-          const roomHeal = Math.min(prev.maxHealth - prev.health, selectedCard.value);
-          next.health += roomHeal;
-          next.sessionStats.healingDone += roomHeal;
-          next.room = prev.room.filter(c => c.id !== prev.selectedCardId);
-          addFloatingText(`+${roomHeal} HP`, "heal");
-          triggerEffect("animate-heal");
-          break;
-      }
+          case "POTION_ROOM":
+            const roomHeal = Math.min(prev.maxHealth - prev.health, card.value);
+            next.health += roomHeal;
+            next.sessionStats.healingDone += roomHeal;
+            next.room = prev.room.filter(c => c.id !== selectedCardId);
+            addFloatingText(`+${roomHeal} HP`, "heal");
+            break;
+        }
 
-      next.selectedCardId = null;
-      if (next.health <= 0) {
-        next.status = "lost";
-        updateGlobalStats("lost", next.sessionStats);
-        return next;
-      }
+        next.selectedCardId = null;
+        setDyingCardId(null);
 
-      return checkRoomTransition(next);
-    });
+        if (next.health <= 0) {
+          next.status = "lost";
+          updateGlobalStats("lost", next.sessionStats);
+          return next;
+        }
+
+        return checkRoomTransition(next);
+      });
+    }, 400); // Wait for card defeat animation
   };
 
   const handleTutorialStepAction = (id: string) => {
@@ -404,7 +437,6 @@ const App: React.FC = () => {
     
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white font-inter overflow-hidden relative">
-        {/* Animated Background Orbs */}
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-red-900/20 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900/20 rounded-full blur-[120px] animate-pulse delay-700" />
 
@@ -470,44 +502,6 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className={`stat-card p-6 rounded-3xl ${globalStats.bestRun.rooms > 5 ? 'record-glow' : ''}`}>
-                  <span className="block text-[10px] text-gold font-black uppercase mb-1 tracking-widest flex items-center gap-1">
-                    🏆 Max Stanze
-                  </span>
-                  <span className="text-3xl font-bold">{globalStats.bestRun.rooms}</span>
-                </div>
-                <div className={`stat-card p-6 rounded-3xl ${globalStats.bestRun.enemies > 10 ? 'record-glow' : ''}`}>
-                  <span className="block text-[10px] text-gold font-black uppercase mb-1 tracking-widest flex items-center gap-1">
-                    ⚔️ Max Nemici
-                  </span>
-                  <span className="text-3xl font-bold">{globalStats.bestRun.enemies}</span>
-                </div>
-                <div className="stat-card p-6 rounded-3xl">
-                  <span className="block text-[10px] text-slate-500 font-black uppercase mb-1 tracking-widest">Danni Totali</span>
-                  <span className="text-3xl font-bold text-red-400">{globalStats.totalDamageTaken}</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-950/50 p-6 rounded-3xl border border-slate-800/50 mb-8">
-                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-4">Statistiche Cumulative</h4>
-                 <div className="grid grid-cols-2 gap-x-12 gap-y-4">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-400">Pozioni Usate</span>
-                      <span className="font-bold text-emerald-400">{globalStats.totalPotionsUsed}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-400">Armi Equipaggiate</span>
-                      <span className="font-bold text-blue-400">{globalStats.totalWeaponsEquipped}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-400">Cura Totale</span>
-                      <span className="font-bold text-emerald-500">{globalStats.totalHealingDone}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-slate-400">Ritirate Eseguite</span>
-                      <span className="font-bold text-slate-500">{globalStats.totalRunsUsed}</span>
-                    </div>
-                 </div>
               </div>
 
               <div className="flex gap-4">
@@ -571,6 +565,12 @@ const App: React.FC = () => {
         </div>
       ))}
 
+      {slashes.map(s => (
+        <div key={s.id} className="fixed inset-0 pointer-events-none z-[450]" style={{ left: `${s.x}%`, top: `${s.y}%` }}>
+          <div className="slash-effect" />
+        </div>
+      ))}
+
       {floatingTexts.map(ft => (
         <div 
           key={ft.id} 
@@ -596,6 +596,7 @@ const App: React.FC = () => {
           selectedId={gameState.selectedCardId} 
           onSelect={handleTutorialStepAction} 
           isExiting={isFleeing}
+          dyingCardId={dyingCardId}
         />
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 sticky bottom-8 bg-slate-900/95 backdrop-blur-2xl p-6 rounded-[40px] border border-slate-700/50 shadow-2xl z-40">
