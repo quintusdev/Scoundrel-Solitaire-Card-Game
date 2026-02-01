@@ -1,0 +1,5 @@
+{
+  "name": "Scoundrel Prototipo",
+  "description": "Un gioco di carte dungeon crawler stile Scoundrel con HUD avanzato, manuale interattivo e modalità Easy/Normal.",
+  "requestFramePermissions": []
+}
