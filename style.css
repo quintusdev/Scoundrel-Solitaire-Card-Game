@@ -1,4 +1,3 @@
-
 /* Reset & Base */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
@@ -19,6 +18,9 @@ body {
   overflow-x: hidden;
 }
 
+/* --- COMMENTO JUNIOR: Ho messo questo overflow hidden perché sennò 
+   la pagina balla tutta quando faccio le animazioni di shake. --- */
+
 /* Card Container Base */
 .card {
   position: relative;
@@ -38,7 +40,20 @@ body {
 }
 
 .card:hover { transform: translateY(-5px); border-color: #334155; }
-.card-selected { border-color: #facc15 !important; transform: scale(1.05) translateY(-10px); z-index: 50; box-shadow: 0 0 20px rgba(250, 204, 21, 0.4); }
+
+/* Bagliore Crescente quando selezionata */
+.card-selected { 
+  border-color: var(--gold) !important; 
+  transform: scale(1.08) translateY(-15px); 
+  z-index: 50; 
+  box-shadow: 0 0 30px rgba(250, 204, 21, 0.6);
+  animation: glow-pulse-selected 1.5s infinite alternate;
+}
+
+@keyframes glow-pulse-selected {
+  from { box-shadow: 0 0 15px rgba(250, 204, 21, 0.3); }
+  to { box-shadow: 0 0 45px rgba(250, 204, 21, 0.7); }
+}
 
 /* Central Pixel Art Styling */
 .card-art {
@@ -53,6 +68,7 @@ body {
   justify-content: center;
   z-index: 1;
   pointer-events: none;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
 }
 
 .card-art svg {
@@ -81,93 +97,96 @@ body {
 
 /* Screen Effects */
 .blood-vignette {
-  box-shadow: inset 0 0 100px rgba(185, 28, 28, 0.8);
+  box-shadow: inset 0 0 150px rgba(185, 28, 28, 0.9);
   animation: vignette-pulse 0.6s ease-out forwards;
 }
 
 @keyframes vignette-pulse {
   0% { box-shadow: inset 0 0 0px rgba(185, 28, 28, 0); }
-  30% { box-shadow: inset 0 0 200px rgba(185, 28, 28, 1); }
+  30% { box-shadow: inset 0 0 300px rgba(185, 28, 28, 1); }
   100% { box-shadow: inset 0 0 0px rgba(185, 28, 28, 0); }
-}
-
-.flash-red { animation: flash-red-anim 0.3s ease-out; }
-@keyframes flash-red-anim {
-  0% { background: rgba(239, 68, 68, 0); }
-  50% { background: rgba(239, 68, 68, 0.3); }
-  100% { background: rgba(239, 68, 68, 0); }
 }
 
 .flash-red-heavy { animation: flash-red-heavy-anim 0.5s ease-out; }
 @keyframes flash-red-heavy-anim {
   0% { background: rgba(239, 68, 68, 0); }
-  50% { background: rgba(239, 68, 68, 0.6); }
+  50% { background: rgba(239, 68, 68, 0.7); }
   100% { background: rgba(239, 68, 68, 0); }
 }
 
 .flash-blue { animation: flash-blue-anim 0.3s ease-out; }
 @keyframes flash-blue-anim {
   0% { background: rgba(59, 130, 246, 0); }
-  50% { background: rgba(59, 130, 246, 0.3); }
+  50% { background: rgba(59, 130, 246, 0.4); }
   100% { background: rgba(59, 130, 246, 0); }
 }
 
-/* Shakes */
+/* Aberrazione Cromatica per colpi pesanti */
+.glitch-chromatic {
+  animation: chromatic-glitch 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+@keyframes chromatic-glitch {
+  0% { text-shadow: 3px 0 0 #ff0000, -3px 0 0 #00ffff; filter: hue-rotate(90deg) contrast(1.5); }
+  50% { text-shadow: -4px 0 0 #ff0000, 4px 0 0 #00ffff; filter: hue-rotate(-90deg) contrast(2); }
+  100% { text-shadow: 0 0 0 transparent; filter: none; }
+}
+
+/* Shakes - COPIATO DA STACK OVERFLOW MA FUNZIONA DA DIO */
 .animate-shake { animation: shake-anim 0.4s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes shake-anim {
-  10%, 90% { transform: translate3d(-2px, 0, 0); }
-  20%, 80% { transform: translate3d(4px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
-  40%, 60% { transform: translate3d(8px, 0, 0); }
+  10%, 90% { transform: translate3d(-3px, 0, 0); }
+  20%, 80% { transform: translate3d(5px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-10px, 0, 0); }
+  40%, 60% { transform: translate3d(10px, 0, 0); }
 }
 
 .animate-shake-heavy { animation: shake-heavy-anim 0.5s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes shake-heavy-anim {
-  10%, 90% { transform: translate3d(-6px, -3px, 0); }
-  20%, 80% { transform: translate3d(12px, 6px, 0); }
-  30%, 50%, 70% { transform: translate3d(-18px, -9px, 0); }
-  40%, 60% { transform: translate3d(18px, 9px, 0); }
+  10%, 90% { transform: translate3d(-8px, -4px, 0); }
+  20%, 80% { transform: translate3d(15px, 8px, 0); }
+  30%, 50%, 70% { transform: translate3d(-20px, -10px, 0); }
+  40%, 60% { transform: translate3d(20px, 10px, 0); }
 }
 
 /* Actions */
 .animate-heal { animation: heal-pulse 0.7s ease-out; }
 @keyframes heal-pulse {
-  0% { filter: brightness(1) drop-shadow(0 0 0px var(--emerald)); transform: scale(1); }
-  50% { filter: brightness(2) drop-shadow(0 0 30px var(--emerald)); transform: scale(1.02); }
-  100% { filter: brightness(1) drop-shadow(0 0 0px var(--emerald)); transform: scale(1); }
+  0% { filter: brightness(1); transform: scale(1); }
+  50% { filter: brightness(2.5) drop-shadow(0 0 40px var(--emerald)); transform: scale(1.05); }
+  100% { filter: brightness(1); transform: scale(1); }
 }
 
 .animate-weapon-pop { animation: weapon-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 @keyframes weapon-pop {
-  0% { transform: scale(1); filter: brightness(1); }
-  40% { transform: scale(1.4) rotate(8deg); filter: brightness(1.5) drop-shadow(0 0 20px var(--blue)); }
-  100% { transform: scale(1); filter: brightness(1); }
+  0% { transform: scale(1); }
+  40% { transform: scale(1.5) rotate(10deg); filter: drop-shadow(0 0 30px var(--blue)) brightness(1.5); }
+  100% { transform: scale(1); }
 }
 
-/* Stylized Combat Onomatopoeia Floating Text */
+/* Floating Text Onomatopoeia */
 .floating-text {
   position: fixed;
   pointer-events: none;
   font-weight: 900;
   z-index: 1000;
   font-family: 'Space Grotesk', sans-serif;
-  letter-spacing: -0.05em;
-  animation: float-up-onomatopoeia 1s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  text-transform: uppercase;
+  animation: float-up-onomatopoeia 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
   text-shadow: 
-    4px 4px 0px rgba(0,0,0,1),
-    -1px -1px 0px rgba(0,0,0,1),
-    1px -1px 0px rgba(0,0,0,1),
-    -1px 1px 0px rgba(0,0,0,1);
+    3px 3px 0px black,
+    -1px -1px 0px black,
+    1px -1px 0px black,
+    -1px 1px 0px black;
 }
 
 @keyframes float-up-onomatopoeia {
-  0% { transform: translate(-50%, 20px) scale(0) rotate(-20deg); opacity: 0; }
-  20% { transform: translate(-50%, -20px) scale(1.5) rotate(5deg); opacity: 1; }
-  40% { transform: translate(-50%, -30px) scale(1.2) rotate(-5deg); }
-  100% { transform: translate(-50%, -150px) scale(1) rotate(0deg); opacity: 0; }
+  0% { transform: translate(-50%, 30px) scale(0) rotate(-15deg); opacity: 0; }
+  25% { transform: translate(-50%, -20px) scale(2) rotate(5deg); opacity: 1; }
+  50% { transform: translate(-50%, -40px) scale(1.5) rotate(-5deg); }
+  100% { transform: translate(-50%, -200px) scale(1) rotate(0deg); opacity: 0; }
 }
 
-/* Shockwave Explosion */
+/* Shockwave */
 .shockwave {
   border-radius: 50%;
   border: 4px solid;
@@ -177,63 +196,56 @@ body {
 }
 
 @keyframes shockwave-grow-fade {
-  0% { width: 0; height: 0; opacity: 1; border-width: 20px; }
-  100% { width: 500px; height: 500px; opacity: 0; border-width: 1px; }
+  0% { width: 0; height: 0; opacity: 1; border-width: 30px; }
+  100% { width: 700px; height: 700px; opacity: 0; border-width: 1px; }
 }
 
 /* Slash Visual Effect */
 .slash-effect {
   position: absolute;
-  width: 400%;
-  height: 60px;
-  background: linear-gradient(90deg, transparent, white, white, transparent);
-  box-shadow: 0 0 40px white, 0 0 80px var(--blue);
+  width: 500%;
+  height: 100px;
+  background: linear-gradient(90deg, transparent, white, #fff, transparent);
+  box-shadow: 0 0 60px white, 0 0 120px var(--blue);
   z-index: 100;
   top: 50%;
-  left: -150%;
+  left: -200%;
   transform: rotate(-35deg) scaleX(0);
-  animation: slash-slice 0.4s cubic-bezier(0.2, 1, 0.2, 1) forwards;
+  animation: slash-slice 0.45s cubic-bezier(0.15, 1, 0.15, 1) forwards;
   pointer-events: none;
 }
 
 @keyframes slash-slice {
   0% { transform: rotate(-35deg) scaleX(0); opacity: 0; }
-  20% { transform: rotate(-35deg) scaleX(1); opacity: 1; }
-  100% { transform: rotate(-35deg) scaleX(1.5) translateX(30%); opacity: 0; }
+  25% { transform: rotate(-35deg) scaleX(1.3); opacity: 1; filter: brightness(2.5); }
+  100% { transform: rotate(-35deg) scaleX(2.5) translateX(50%); opacity: 0; filter: brightness(1); }
 }
 
-/* Card Defeat Animation (Pixel Burst) */
+/* Card Defeat Animation - Pixel Explosion Dissolve */
 .card-defeat {
-  animation: card-shatter 0.5s cubic-bezier(0.5, 0, 0.5, 1) forwards;
+  animation: card-shatter-dissolve 0.6s cubic-bezier(0.6, 0, 0.4, 1) forwards;
   pointer-events: none;
   z-index: 60;
 }
 
-@keyframes card-shatter {
-  0% { transform: scale(1); filter: brightness(1) contrast(1); }
-  15% { transform: scale(1.2); filter: brightness(5) contrast(2); }
+@keyframes card-shatter-dissolve {
+  0% { transform: scale(1); filter: brightness(1) contrast(1) blur(0); }
+  15% { transform: scale(1.25) rotate(-5deg); filter: brightness(6) contrast(2.5); }
+  30% { transform: scale(1.1) rotate(5deg); filter: brightness(4) blur(5px); }
   100% { 
-    transform: scale(0.2) translateY(-200px) rotate(45deg); 
-    filter: brightness(0) blur(30px); 
-    opacity: 0; 
+    transform: scale(0) translateY(-400px) rotate(45deg); 
+    filter: blur(60px) brightness(0); 
+    opacity: 0;
+    box-shadow: 
+      30px -30px 0 15px #fff, 
+      -30px 30px 0 15px #fff,
+      50px 50px 0 8px #fff,
+      -50px -50px 0 8px #fff;
   }
 }
 
-.impact-ring {
-  position: absolute;
-  inset: -15px;
-  border: 10px solid white;
-  border-radius: 20px;
-  pointer-events: none;
-  animation: ring-burst-pixel 0.4s ease-out forwards;
-}
-
-@keyframes ring-burst-pixel {
-  0% { transform: scale(0.7); opacity: 1; border-width: 20px; }
-  100% { transform: scale(1.6); opacity: 0; border-width: 1px; }
-}
-
-/* Flee Exit (Smoke Trail) */
+/* --- COMMENTO JUNIOR: La fuga (flee) è la parte più figa. 
+   Faccio volare le carte fuori a destra velocissime! --- */
 .card-exit-flee {
   animation: card-flee-smoke 0.6s cubic-bezier(0.5, 0, 0.1, 1) forwards !important;
   pointer-events: none;
@@ -241,8 +253,8 @@ body {
 
 @keyframes card-flee-smoke {
   0% { opacity: 1; transform: translateX(0) scale(1); filter: blur(0); }
-  20% { transform: translateX(-20px) scale(1.05); }
-  100% { transform: translateX(600px) skewX(-20deg) scale(0.2); filter: blur(20px); opacity: 0; }
+  20% { transform: translateX(-30px) scale(1.1) skewX(-15deg); }
+  100% { transform: translateX(1200px) skewX(-40deg) scale(0.05); filter: blur(30px); opacity: 0; }
 }
 
 .card-animate {
@@ -251,12 +263,42 @@ body {
 }
 
 @keyframes card-in {
-  0% { opacity: 0; transform: translateY(80px) scale(0.8); filter: blur(5px); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  0% { opacity: 0; transform: translateY(100px) scale(0.7) rotate(-10deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+.impact-ring {
+  position: absolute;
+  inset: -20px;
+  border: 12px solid white;
+  border-radius: 24px;
+  pointer-events: none;
+  animation: ring-burst-pixel 0.45s cubic-bezier(0, 0.5, 0.5, 1) forwards;
+}
+
+@keyframes ring-burst-pixel {
+  0% { transform: scale(0.6); opacity: 1; border-width: 30px; }
+  100% { transform: scale(2.2); opacity: 0; border-width: 1px; }
+}
+
+/* --- COMMENTO JUNIOR: Questo effetto di "Screen Crack" lo attivo 
+   quando il giocatore prende troppi danni. Speriamo non spaventi troppo. --- */
+.screen-crack {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background-image: 
+    linear-gradient(45deg, transparent 49%, rgba(255,255,255,0.15) 50%, transparent 51%),
+    linear-gradient(-45deg, transparent 49%, rgba(255,255,255,0.15) 50%, transparent 51%),
+    linear-gradient(90deg, transparent 49%, rgba(255,255,255,0.05) 50%, transparent 51%);
+  background-size: 100% 100%, 80% 80%, 120% 120%;
+  animation: crack-in 0.35s steps(3);
+}
+@keyframes crack-in {
+  0% { opacity: 0; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* Custom Font Import Emulation */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700;900&display=swap');

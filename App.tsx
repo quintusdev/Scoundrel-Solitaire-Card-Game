@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, Card, GameMode, ActionResponse, GameStats, SessionStats } from './types';
 import { createDeck } from './constants';
@@ -8,6 +7,8 @@ import RulesModal from './components/RulesModal';
 import Toast from './components/Toast';
 import TutorialOverlay from './components/TutorialOverlay';
 
+// --- COMMENTO JUNIOR: Spero che questi 20 HP bastino, 
+// a me il gioco sembra un po' difficile... ---
 const INITIAL_HEALTH = 20;
 const POTION_HEAL = 7;
 const STATS_KEY = "scoundrel_react_stats_v1";
@@ -59,6 +60,8 @@ interface Slash {
 }
 
 const App: React.FC = () => {
+  // --- COMMENTO JUNIOR: State del gioco. Mi hanno detto che gli state 
+  // troppo grossi fanno male alle performance, ma per ora lo tengo così. ---
   const [gameState, setGameState] = useState<GameState>({
     status: "start",
     mode: "normal",
@@ -86,10 +89,13 @@ const App: React.FC = () => {
   const [slashes, setSlashes] = useState<Slash[]>([]);
   const [isFleeing, setIsFleeing] = useState(false);
   const [dyingCardId, setDyingCardId] = useState<string | null>(null);
+  const [isHitStopped, setIsHitStopped] = useState(false);
   
   const [isTutorial, setIsTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
+  // --- COMMENTO JUNIOR: Recupero le stats dal localStorage. 
+  // Se l'utente pulisce la cache, addio record! ---
   useEffect(() => {
     const saved = localStorage.getItem(STATS_KEY);
     if (saved) setGlobalStats(JSON.parse(saved));
@@ -105,14 +111,22 @@ const App: React.FC = () => {
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000);
   };
 
-  const getRandomOnomatopoeia = (type: string) => {
+  const getRandomOnomatopoeia = (type: string, value: number) => {
     const weaponHits = ["SLASH!", "SWISH!", "SHING!", "CLANG!", "THWACK!"];
-    const unarmedHits = ["BAM!", "POW!", "WHACK!", "KABOOM!", "THUD!", "WHAM!"];
-    const potions = ["SLURP!", "GLUG!", "SPLASH!", "AHHH!"];
-    const equip = ["CLICK!", "SNAP!", "GOTCHA!", "SHINY!"];
+    const heavyWeaponHits = ["CRITICAL!", "DECIMATE!", "OBLITERATE!", "SLAUGHTER!", "K.O.!"];
+    const unarmedHits = ["BAM!", "POW!", "WHACK!", "THUD!", "WHAM!", "OUCH!"];
+    const heavyUnarmedHits = ["CRUSH!", "DESTROY!", "KABOOM!", "REKT!", "FATAL!"];
+    const potions = ["SLURP!", "GLUG!", "SPLASH!", "AHHH!", "REFRESH!"];
+    const equip = ["CLICK!", "SNAP!", "GOTCHA!", "SHINY!", "READY!"];
 
-    if (type === 'weapon') return weaponHits[Math.floor(Math.random() * weaponHits.length)];
-    if (type === 'unarmed') return unarmedHits[Math.floor(Math.random() * unarmedHits.length)];
+    if (type === 'weapon') {
+      const list = value >= 10 ? heavyWeaponHits : weaponHits;
+      return list[Math.floor(Math.random() * list.length)];
+    }
+    if (type === 'unarmed') {
+      const list = value >= 10 ? heavyUnarmedHits : unarmedHits;
+      return list[Math.floor(Math.random() * list.length)];
+    }
     if (type === 'potion') return potions[Math.floor(Math.random() * potions.length)];
     return equip[Math.floor(Math.random() * equip.length)];
   };
@@ -121,24 +135,24 @@ const App: React.FC = () => {
     const id = Date.now() + Math.random();
     const y = 45 + Math.random() * 10; 
     setFloatingTexts(prev => [...prev, { id, text, type, x: xPos, y, isUnarmed }]);
-    setTimeout(() => setFloatingTexts(prev => prev.filter(ft => ft.id !== id)), 1000);
+    setTimeout(() => setFloatingTexts(prev => prev.filter(ft => ft.id !== id)), 1200);
   };
 
   const triggerExplosion = (x: number = 50, y: number = 50, color: string = "#ef4444") => {
     const id = Date.now() + Math.random();
     setExplosions(prev => [...prev, { id, x, y, color }]);
-    setTimeout(() => setExplosions(prev => prev.filter(e => e.id !== id)), 700);
+    setTimeout(() => setExplosions(prev => prev.filter(e => e.id !== id)), 800);
   };
 
   const triggerSlash = (x: number = 50, y: number = 50) => {
     const id = Date.now() + Math.random();
     setSlashes(prev => [...prev, { id, x, y }]);
-    setTimeout(() => setSlashes(prev => prev.filter(s => s.id !== id)), 400);
+    setTimeout(() => setSlashes(prev => prev.filter(s => s.id !== id)), 450);
   };
 
   const triggerEffect = (effect: string) => {
     setVisualEffect(effect);
-    setTimeout(() => setVisualEffect(null), 700);
+    setTimeout(() => setVisualEffect(null), 800);
   };
 
   const updateGlobalStats = (result: "won" | "lost", session: SessionStats) => {
@@ -264,7 +278,7 @@ const App: React.FC = () => {
 
     if (actionType === "FUGA") {
       setIsFleeing(true);
-      triggerEffect("flash-blue animate-shake");
+      triggerEffect("flash-blue animate-shake glitch-chromatic");
       addToast("RITIRATA!", "warning");
       setTimeout(() => {
         setGameState(prev => {
@@ -298,7 +312,7 @@ const App: React.FC = () => {
         next.potions -= 1;
         next.sessionStats.healingDone += actualHeal;
         next.sessionStats.potionsUsed += 1;
-        addFloatingText(getRandomOnomatopoeia('potion'), "heal", false, 50);
+        addFloatingText(getRandomOnomatopoeia('potion', actualHeal), "heal", false, 50);
         triggerEffect("animate-heal");
         return next;
       });
@@ -310,25 +324,30 @@ const App: React.FC = () => {
     const cardIdx = room.findIndex(c => c.id === selectedCardId);
     const xPos = 20 + cardIdx * 20; 
 
+    // --- HIT STOP MARCATO: Blocco per 150ms per enfatizzare l'impatto ---
+    setIsHitStopped(true);
+    setTimeout(() => setIsHitStopped(false), 150);
+
     // Orchestrate Visuals
     if (actionType === "UNARMED") {
       triggerExplosion(xPos, 50, "#ef4444");
-      triggerEffect("animate-shake-heavy flash-red-heavy blood-vignette");
-      addFloatingText(getRandomOnomatopoeia('unarmed'), "damage", true, xPos);
+      triggerEffect("animate-shake-heavy flash-red-heavy blood-vignette glitch-chromatic");
+      addFloatingText(getRandomOnomatopoeia('unarmed', selectedCard.value), "damage", true, xPos);
+      if (selectedCard.value >= 11) triggerEffect("screen-crack");
     } else if (actionType === "WEAPON") {
       if (selectedCard.suit === "Quadri") {
         triggerExplosion(xPos, 50, "#facc15");
-        triggerEffect("flash-blue animate-weapon-pop");
-        addFloatingText(getRandomOnomatopoeia('equip'), "equip", false, xPos);
+        triggerEffect("flash-blue animate-weapon-pop glitch-chromatic");
+        addFloatingText(getRandomOnomatopoeia('equip', selectedCard.value), "equip", false, xPos);
       } else {
         triggerSlash(xPos, 50);
         triggerExplosion(xPos, 50, "#3b82f6");
-        triggerEffect("animate-shake flash-blue");
-        addFloatingText(getRandomOnomatopoeia('weapon'), "action", false, xPos);
+        triggerEffect("animate-shake flash-blue glitch-chromatic");
+        addFloatingText(getRandomOnomatopoeia('weapon', selectedCard.value), "action", false, xPos);
       }
     } else if (actionType === "POTION_ROOM") {
       triggerEffect("animate-heal");
-      addFloatingText(getRandomOnomatopoeia('potion'), "heal", false, xPos);
+      addFloatingText(getRandomOnomatopoeia('potion', selectedCard.value), "heal", false, xPos);
     }
 
     setDyingCardId(selectedCard.id);
@@ -376,7 +395,7 @@ const App: React.FC = () => {
         }
         return checkRoomTransition(next);
       });
-    }, 450);
+    }, 500);
   };
 
   const handleSelect = (id: string) => {
@@ -430,8 +449,10 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen flex flex-col p-4 md:p-8 bg-slate-950 relative overflow-hidden transition-all duration-300 ${visualEffect?.includes('blood-vignette') ? 'blood-vignette' : ''}`}>
       {/* VFX Layers */}
-      <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : visualEffect?.includes('flash-red') ? 'flash-red' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''}`} />
+      <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : visualEffect?.includes('flash-red') ? 'flash-red' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''} ${visualEffect?.includes('glitch-chromatic') ? 'glitch-chromatic' : ''}`} />
       
+      {visualEffect?.includes('screen-crack') && <div className="screen-crack" />}
+
       {explosions.map(exp => (
         <div key={exp.id} className="fixed inset-0 pointer-events-none z-[450]" style={{ left: `${exp.x}%`, top: `${exp.y}%` }}>
           <div className="shockwave" style={{ borderColor: exp.color }} />
@@ -445,14 +466,14 @@ const App: React.FC = () => {
       ))}
 
       {floatingTexts.map(ft => (
-        <div key={ft.id} className={`floating-text fixed pointer-events-none z-[1000] ${ft.type === 'damage' ? 'text-red-500' : ft.type === 'heal' ? 'text-emerald-400' : ft.type === 'equip' ? 'text-yellow-400' : 'text-blue-400'} ${ft.isUnarmed ? 'text-6xl scale-150' : 'text-4xl'}`} style={{ left: `${ft.x}%`, top: `${ft.y}%` }}>
+        <div key={ft.id} className={`floating-text fixed pointer-events-none z-[1000] ${ft.type === 'damage' ? 'text-red-500' : ft.type === 'heal' ? 'text-emerald-400' : ft.type === 'equip' ? 'text-yellow-400' : 'text-blue-400'} ${ft.isUnarmed ? 'text-7xl scale-150 font-black italic' : 'text-5xl font-black'}`} style={{ left: `${ft.x}%`, top: `${ft.y}%` }}>
           {ft.text}
         </div>
       ))}
 
       {isTutorial && <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s + 1)} onComplete={() => setIsTutorial(false)} />}
 
-      <div className={`flex-1 flex flex-col max-w-6xl mx-auto w-full transition-transform duration-300 ${currentEffectClass || ''}`}>
+      <div className={`flex-1 flex flex-col max-w-6xl mx-auto w-full transition-transform duration-300 ${currentEffectClass || ''} ${isHitStopped ? 'scale-[0.98] grayscale-[0.3]' : ''}`}>
         <HUD state={gameState} effectClass={currentEffectClass} />
         <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={handleSelect} isExiting={isFleeing} dyingCardId={dyingCardId} />
 
