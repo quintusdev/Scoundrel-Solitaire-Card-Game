@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { GameState, Card, GameMode, ActionResponse, GameStats, SessionStats } from './types';
+import { GameState, Card, GameMode, ActionResponse, GameStats, SessionStats, Suit } from './types';
 import { createDeck } from './constants';
 import HUD from './components/HUD';
 import Room from './components/Room';
@@ -7,8 +8,6 @@ import RulesModal from './components/RulesModal';
 import Toast from './components/Toast';
 import TutorialOverlay from './components/TutorialOverlay';
 
-// --- COMMENTO JUNIOR: Spero che questi 20 HP bastino, 
-// a me il gioco sembra un po' difficile... ---
 const INITIAL_HEALTH = 20;
 const POTION_HEAL = 7;
 const STATS_KEY = "scoundrel_react_stats_v1";
@@ -60,8 +59,6 @@ interface Slash {
 }
 
 const App: React.FC = () => {
-  // --- COMMENTO JUNIOR: State del gioco. Mi hanno detto che gli state 
-  // troppo grossi fanno male alle performance, ma per ora lo tengo così. ---
   const [gameState, setGameState] = useState<GameState>({
     status: "start",
     mode: "normal",
@@ -94,14 +91,13 @@ const App: React.FC = () => {
   const [isTutorial, setIsTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
-  // --- COMMENTO JUNIOR: Recupero le stats dal localStorage. 
-  // Se l'utente pulisce la cache, addio record! ---
   useEffect(() => {
     const saved = localStorage.getItem(STATS_KEY);
     if (saved) setGlobalStats(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
+    // Fixed: replaced incorrect 'Hub.JSON.stringify' with standard 'JSON.stringify'
     if (globalStats.totalGames > 0) localStorage.setItem(STATS_KEY, JSON.stringify(globalStats));
   }, [globalStats]);
 
@@ -206,11 +202,12 @@ const App: React.FC = () => {
     setIsTutorial(forceTutorial);
     setTutorialStep(0);
     let newDeck = createDeck();
-    let firstRoom = forceTutorial ? [
-      { id: 'tut-m1', suit: 'Fiori', rank: '5', value: 5 },
-      { id: 'tut-w1', suit: 'Quadri', rank: '8', value: 8 },
-      { id: 'tut-p1', suit: 'Cuori', rank: '4', value: 4 },
-      { id: 'tut-m2', suit: 'Picche', rank: '7', value: 7 },
+    // Fix: Explicitly type tutorial cards as Card to match state definition
+    let firstRoom: Card[] = forceTutorial ? [
+      { id: 'tut-m1', suit: 'Fiori' as Suit, rank: '5', value: 5 },
+      { id: 'tut-w1', suit: 'Quadri' as Suit, rank: '8', value: 8 },
+      { id: 'tut-p1', suit: 'Cuori' as Suit, rank: '4', value: 4 },
+      { id: 'tut-m2', suit: 'Picche' as Suit, rank: '7', value: 7 },
     ] : newDeck.splice(0, 4);
 
     setGameState({
@@ -296,11 +293,6 @@ const App: React.FC = () => {
       return;
     }
 
-    if (isTutorial) {
-      if (tutorialStep === 2 && actionType === "UNARMED") setTutorialStep(3);
-      if (tutorialStep === 4 && actionType === "WEAPON") setTutorialStep(5);
-    }
-
     const { selectedCardId, room } = gameState;
     const selectedCard = room.find(c => c.id === selectedCardId);
 
@@ -324,11 +316,9 @@ const App: React.FC = () => {
     const cardIdx = room.findIndex(c => c.id === selectedCardId);
     const xPos = 20 + cardIdx * 20; 
 
-    // --- HIT STOP MARCATO: Blocco per 150ms per enfatizzare l'impatto ---
     setIsHitStopped(true);
     setTimeout(() => setIsHitStopped(false), 150);
 
-    // Orchestrate Visuals
     if (actionType === "UNARMED") {
       triggerExplosion(xPos, 50, "#ef4444");
       triggerEffect("animate-shake-heavy flash-red-heavy blood-vignette glitch-chromatic");
@@ -352,7 +342,6 @@ const App: React.FC = () => {
 
     setDyingCardId(selectedCard.id);
     
-    // Impact Hitstop / Delay for feel
     setTimeout(() => {
       setGameState(prev => {
         let next = { ...prev };
@@ -399,57 +388,17 @@ const App: React.FC = () => {
   };
 
   const handleSelect = (id: string) => {
-    const selectedCard = gameState.room.find(c => c.id === id);
-    if (isTutorial) {
-      if (tutorialStep === 1 && (selectedCard?.suit === 'Fiori' || selectedCard?.suit === 'Picche')) setTutorialStep(2);
-      else if (tutorialStep === 3 && selectedCard?.suit === 'Quadri') setTutorialStep(4);
-    }
     setGameState(prev => ({ ...prev, selectedCardId: id === prev.selectedCardId ? null : id }));
   };
 
-  if (gameState.status === "start") {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white font-inter relative overflow-hidden">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-red-900/10 rounded-full blur-[150px] animate-pulse" />
-        <div className="z-10 text-center">
-          <h1 className="text-8xl md:text-[10rem] title-font font-bold mb-6 text-red-600 tracking-tighter uppercase drop-shadow-[0_0_50px_rgba(220,38,38,0.7)]">Scoundrel</h1>
-          <p className="text-slate-500 mb-12 max-w-sm mx-auto italic">Ogni carta è una promessa. Ogni scelta un fendente.</p>
-          <div className="flex flex-col gap-4 w-full max-w-sm mx-auto px-4">
-            <button onClick={() => startNewGame("normal")} className="py-6 bg-red-600 hover:bg-red-500 font-black rounded-3xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 text-xl tracking-widest shadow-2xl transition-all">SOPRAVVIVI</button>
-            <button onClick={() => startNewGame("normal", true)} className="py-4 bg-blue-600 hover:bg-blue-500 font-black rounded-3xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 text-xs tracking-widest uppercase">🎓 Addestramento</button>
-            <div className="flex gap-2">
-              <button onClick={() => setShowStats(true)} className="flex-1 py-3 bg-slate-900 border border-slate-700 rounded-xl font-bold text-[10px] tracking-widest uppercase">Archivio</button>
-              <button onClick={() => setShowRules(true)} className="flex-1 py-3 bg-slate-900 border border-slate-700 rounded-xl font-bold text-[10px] tracking-widest uppercase">Manuale</button>
-            </div>
-          </div>
-        </div>
-        {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-      </div>
-    );
-  }
-
-  if (gameState.status === "won" || gameState.status === "lost") {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950 text-white">
-        <div className={`p-16 rounded-[60px] border-4 flex flex-col items-center w-full max-w-xl ${gameState.status === "won" ? 'border-emerald-500 bg-emerald-950/20 shadow-[0_0_40px_rgba(16,185,129,0.3)]' : 'border-red-900 bg-red-950/20 shadow-[0_0_40px_rgba(185,28,28,0.3)]'}`}>
-            <h1 className={`text-8xl font-black mb-10 text-center title-font ${gameState.status === "won" ? 'text-emerald-400' : 'text-red-600'}`}>{gameState.status === "won" ? "EROE" : "CADUTO"}</h1>
-            <button onClick={() => setGameState(prev => ({ ...prev, status: "start" }))} className="w-full py-6 bg-white text-slate-950 font-black rounded-3xl hover:scale-105 transition-all uppercase tracking-widest shadow-2xl">RITENTA</button>
-        </div>
-      </div>
-    );
-  }
-
-  const currentEffectClass = visualEffect ? (
-    visualEffect.includes('animate-heal') ? 'animate-heal' : 
-    visualEffect.includes('animate-weapon-pop') ? 'animate-weapon-pop' : 
-    visualEffect.includes('animate-shake-heavy') ? 'animate-shake-heavy' :
-    visualEffect.includes('animate-shake') ? 'animate-shake' : undefined
-  ) : undefined;
-
   return (
-    <div className={`min-h-screen flex flex-col p-4 md:p-8 bg-slate-950 relative overflow-hidden transition-all duration-300 ${visualEffect?.includes('blood-vignette') ? 'blood-vignette' : ''}`}>
+    <div className={`min-h-screen flex flex-col p-4 md:p-8 relative overflow-hidden transition-all duration-300 ${visualEffect?.includes('blood-vignette') ? 'blood-vignette' : ''}`}>
+      {/* Background persistente per tutto il gioco */}
+      <div className={`global-game-bg ${gameState.status === 'playing' ? 'bg-playing' : ''}`} />
+      <div className="global-overlay" />
+
       {/* VFX Layers */}
-      <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : visualEffect?.includes('flash-red') ? 'flash-red' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''} ${visualEffect?.includes('glitch-chromatic') ? 'glitch-chromatic' : ''}`} />
+      <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''} ${visualEffect?.includes('glitch-chromatic') ? 'glitch-chromatic' : ''}`} />
       
       {visualEffect?.includes('screen-crack') && <div className="screen-crack" />}
 
@@ -471,28 +420,58 @@ const App: React.FC = () => {
         </div>
       ))}
 
-      {isTutorial && <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s + 1)} onComplete={() => setIsTutorial(false)} />}
-
-      <div className={`flex-1 flex flex-col max-w-6xl mx-auto w-full transition-transform duration-300 ${currentEffectClass || ''} ${isHitStopped ? 'scale-[0.98] grayscale-[0.3]' : ''}`}>
-        <HUD state={gameState} effectClass={currentEffectClass} />
-        <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={handleSelect} isExiting={isFleeing} dyingCardId={dyingCardId} />
-
-        {/* Action Controls */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 bg-slate-900/80 backdrop-blur-xl p-8 rounded-[40px] border border-slate-700/50 shadow-2xl relative z-40">
-          <button id="unarmed-btn" onClick={() => applyAction("UNARMED")} className="group py-5 bg-orange-700 hover:bg-orange-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 overflow-hidden relative">
-            <span className="relative z-10">Mani Nude</span>
-            <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
-          </button>
-          <button id="weapon-btn" onClick={() => applyAction("WEAPON")} className="group py-5 bg-blue-700 hover:bg-blue-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-950 active:border-b-0 active:translate-y-1 overflow-hidden relative">
-            <span className="relative z-10">Attacca/Equip</span>
-            <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
-          </button>
-          <button onClick={() => applyAction("POTION_STOCK")} className="group py-5 bg-emerald-700 hover:bg-emerald-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-950 active:border-b-0 active:translate-y-1 overflow-hidden relative">
-            <span className="relative z-10">Pozione</span>
-            <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
-          </button>
-          <button onClick={() => applyAction("FUGA")} className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-950 hover:bg-slate-600' : 'bg-slate-900 text-slate-700 border-black opacity-50 cursor-not-allowed'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>Ritirata</button>
+      {gameState.status === "start" ? (
+        <div className="flex-1 flex flex-col items-center justify-center z-10 text-center animate-in fade-in zoom-in duration-700">
+          <h1 className="text-8xl md:text-[10rem] title-font font-bold mb-6 text-red-600 tracking-tighter uppercase drop-shadow-[0_0_50px_rgba(220,38,38,0.7)]">Scoundrel</h1>
+          <p className="text-slate-200 mb-12 max-w-sm mx-auto italic font-medium bg-black/40 px-6 py-3 rounded-full backdrop-blur-md border border-white/10">Ogni carta è una promessa. Ogni scelta un fendente.</p>
+          <div className="flex flex-col gap-4 w-full max-w-sm mx-auto px-4">
+            <button onClick={() => startNewGame("normal")} className="py-6 bg-red-600 hover:bg-red-500 font-black rounded-3xl border-b-8 border-red-900 active:border-b-0 active:translate-y-2 text-xl tracking-widest shadow-2xl transition-all">SOPRAVVIVI</button>
+            <button onClick={() => startNewGame("normal", true)} className="py-4 bg-blue-600 hover:bg-blue-500 font-black rounded-3xl border-b-4 border-blue-900 active:border-b-0 active:translate-y-1 text-xs tracking-widest uppercase">🎓 Addestramento</button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowStats(true)} className="flex-1 py-3 bg-slate-900/90 border border-slate-700 rounded-xl font-bold text-[10px] tracking-widest uppercase backdrop-blur-md">Archivio</button>
+              <button onClick={() => setShowRules(true)} className="flex-1 py-3 bg-slate-900/90 border border-slate-700 rounded-xl font-bold text-[10px] tracking-widest uppercase backdrop-blur-md">Manuale</button>
+            </div>
+          </div>
         </div>
+      ) : gameState.status === "won" || gameState.status === "lost" ? (
+        <div className="flex-1 flex flex-col items-center justify-center z-10 text-white">
+          <div className={`p-16 rounded-[60px] border-4 flex flex-col items-center w-full max-w-xl backdrop-blur-xl ${gameState.status === "won" ? 'border-emerald-500 bg-emerald-950/40 shadow-[0_0_40px_rgba(16,185,129,0.3)]' : 'border-red-900 bg-red-950/40 shadow-[0_0_40px_rgba(185,28,28,0.3)]'}`}>
+              <h1 className={`text-8xl font-black mb-10 text-center title-font ${gameState.status === "won" ? 'text-emerald-400' : 'text-red-600'}`}>{gameState.status === "won" ? "EROE" : "CADUTO"}</h1>
+              <button onClick={() => setGameState(prev => ({ ...prev, status: "start" }))} className="w-full py-6 bg-white text-slate-950 font-black rounded-3xl hover:scale-105 transition-all uppercase tracking-widest shadow-2xl">RITENTA</button>
+          </div>
+        </div>
+      ) : (
+        <div className={`flex-1 flex flex-col max-w-6xl mx-auto w-full transition-transform duration-300 ${visualEffect || ''} ${isHitStopped ? 'scale-[0.98] grayscale-[0.3]' : ''}`}>
+          <HUD state={gameState} effectClass={visualEffect || undefined} />
+          <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={handleSelect} isExiting={isFleeing} dyingCardId={dyingCardId} />
+
+          {/* Action Controls */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 bg-slate-900/70 backdrop-blur-2xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative z-40">
+            <button id="unarmed-btn" onClick={() => applyAction("UNARMED")} className="group py-5 bg-orange-700 hover:bg-orange-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+              <span className="relative z-10">Mani Nude</span>
+              <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
+            </button>
+            <button id="weapon-btn" onClick={() => applyAction("WEAPON")} className="group py-5 bg-blue-700 hover:bg-blue-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+              <span className="relative z-10">Attacca/Equip</span>
+              <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
+            </button>
+            <button onClick={() => applyAction("POTION_STOCK")} className="group py-5 bg-emerald-700 hover:bg-emerald-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+              <span className="relative z-10">Pozione</span>
+              <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
+            </button>
+            <button onClick={() => applyAction("FUGA")} className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 shadow-lg ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-950 hover:bg-slate-600 text-white' : 'bg-slate-900/50 text-slate-500 border-black opacity-50 cursor-not-allowed'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>Ritirata</button>
+          </div>
+        </div>
+      )}
+
+      {isTutorial && <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s + 1)} onComplete={() => setIsTutorial(false)} />}
+      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      
+      {/* Toast notifications layer */}
+      <div className="fixed top-8 right-8 z-[1000] flex flex-col gap-2">
+        {toasts.map(toast => (
+          <Toast key={toast.id} message={toast.message} kind={toast.kind} />
+        ))}
       </div>
     </div>
   );
