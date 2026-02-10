@@ -150,7 +150,7 @@ function renderRoom() {
   if (!container) return;
   container.innerHTML = "";
   
-  gameState.room.forEach(card => {
+  gameState.room.forEach((card, index) => {
     const cardEl = document.createElement("div");
     const type = getCardType(card.suit);
     const value = card.value;
@@ -160,7 +160,12 @@ function renderRoom() {
     else if (value >= 10) rarityClass = "glow-medium";
     else if (value >= 6) rarityClass = "glow-soft";
 
-    cardEl.className = `card card-${type} ${rarityClass} ${gameState.selectedCardId === card.id ? 'selected' : ''}`;
+    // Aggiunta la classe card-entry per l'animazione vanilla
+    cardEl.className = `card card-${type} ${rarityClass} card-entry ${gameState.selectedCardId === card.id ? 'selected' : ''}`;
+    
+    // Impostazione del ritardo basato sull'indice per l'effetto a cascata
+    cardEl.style.animationDelay = `${index * 0.1}s`;
+
     const isRed = card.suit === "Cuori" || card.suit === "Quadri";
     const suitIcon = getSuitIcon(card.suit);
 
@@ -373,32 +378,33 @@ function handleAction(type) {
   
   if (!selected) return;
 
-// Logica di combattimento / uso oggetti in base alla modalità selezionata
-if (type === "unarmed" && (selected.suit === "Fiori" || selected.suit === "Picche")) {
-  // senza arma: danno pieno
-  damage(selected.value);
-  removeCard(selected.id);
-
-} else if (type === "weapon") {
-
-  if (selected.suit === "Quadri") {
-    // equipaggi arma
-    gameState.equippedWeapon = selected;
+  // Logica di combattimento / uso oggetti in base alla modalità selezionata
+  if (type === "unarmed" && (selected.suit === "Fiori" || selected.suit === "Picche")) {
+    // senza arma: danno pieno
+    damage(selected.value);
     removeCard(selected.id);
-    triggerExplosion("#3b82f6");
 
-  } else if (selected.suit === "Fiori" || selected.suit === "Picche") {
-    // con arma: danno = max(0, mostro - arma)
-    const weaponValue = gameState.equippedWeapon ? gameState.equippedWeapon.value : 0;
-    const dmg = Math.max(0, selected.value - weaponValue);
-    damage(dmg);
+  } else if (type === "weapon") {
+
+    if (selected.suit === "Quadri") {
+      // equipaggi arma
+      gameState.equippedWeapon = selected;
+      removeCard(selected.id);
+      triggerExplosion("#3b82f6");
+
+    } else if (selected.suit === "Fiori" || selected.suit === "Picche") {
+      // con arma: danno = max(0, mostro - arma)
+      const weaponValue = gameState.equippedWeapon ? gameState.equippedWeapon.value : 0;
+      const dmg = Math.max(0, selected.value - weaponValue);
+      damage(dmg);
+      removeCard(selected.id);
+      triggerExplosion("#3b82f6");
+    }
+
+  } else if (type === "potion" && selected.suit === "Cuori") {
+    heal(selected.value);
     removeCard(selected.id);
-    triggerExplosion("#3b82f6");
   }
-
-} else if (type === "potion" && selected.suit === "Cuori") {
-  heal(selected.value);
-  removeCard(selected.id);
 }
 
 function damage(v) { 

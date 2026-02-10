@@ -10,6 +10,8 @@ interface HUDProps {
 
 const HUD: React.FC<HUDProps> = ({ state, effectClass }) => {
   const selectedCard = state.room.find(c => c.id === state.selectedCardId);
+  const healthPercentage = (state.health / state.maxHealth) * 100;
+  const isCritical = state.health <= 4; // 20% di 20
 
   return (
     <div className={`bg-slate-800/50 p-6 rounded-2xl border border-slate-700 flex flex-wrap gap-8 justify-between items-center mb-12 transition-all duration-300 ${effectClass && !effectClass.includes('animate-weapon-pop') ? effectClass : ''}`}>
@@ -18,21 +20,17 @@ const HUD: React.FC<HUDProps> = ({ state, effectClass }) => {
         <div className="flex items-center gap-3">
           <div className="w-48 h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
             <div 
-              className={`h-full bg-red-500 health-bar-transition ${state.health <= 5 ? 'animate-pulse' : ''}`} 
-              style={{ width: `${(state.health / state.maxHealth) * 100}%` }}
+              className={`h-full bg-red-500 health-bar-transition ${isCritical ? 'animate-flash-red' : (state.health <= 6 ? 'animate-pulse' : '')}`} 
+              style={{ width: `${healthPercentage}%` }}
             />
           </div>
-          <span className={`font-bold text-xl ${state.health <= 5 ? 'text-red-500' : 'text-white'}`}>
+          <span className={`font-bold text-xl ${isCritical ? 'text-red-500 animate-pulse' : 'text-white'}`}>
             {state.health}/{state.maxHealth}
           </span>
         </div>
       </div>
 
       <div className="flex gap-8">
-        <div className="text-center">
-          <span className="block text-xs uppercase text-slate-500 font-bold mb-1">Pozioni</span>
-          <span className="text-xl font-bold text-emerald-400">🧪 {state.potions}</span>
-        </div>
         <div className={`text-center transition-all duration-300 ${effectClass?.includes('animate-weapon-pop') ? 'animate-weapon-pop' : ''}`}>
           <span className="block text-xs uppercase text-slate-500 font-bold mb-1">Arma</span>
           <span className="text-lg font-bold">

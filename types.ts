@@ -1,4 +1,3 @@
-
 export type Suit = "Cuori" | "Quadri" | "Fiori" | "Picche";
 
 export interface Card {
@@ -10,6 +9,14 @@ export interface Card {
 
 export type GameMode = "normal" | "easy";
 
+export interface RunSummary {
+  status: "won" | "lost";
+  rooms: number;
+  enemies: number;
+  duration: number; // in secondi
+  timestamp: number;
+}
+
 export interface GameStats {
   totalGames: number;
   wins: number;
@@ -18,10 +25,10 @@ export interface GameStats {
   totalEnemiesDefeated: number;
   totalDamageTaken: number;
   totalHealingDone: number;
-  totalPotionsUsed: number;
   totalRunsUsed: number;
   totalWeaponsEquipped: number;
   bestRun: { rooms: number; enemies: number };
+  lastGame: RunSummary | null;
 }
 
 export interface SessionStats {
@@ -29,7 +36,6 @@ export interface SessionStats {
   enemiesDefeated: number;
   damageTaken: number;
   healingDone: number;
-  potionsUsed: number;
   runsUsed: number;
   weaponsEquipped: number;
 }
@@ -39,7 +45,6 @@ export interface GameState {
   mode: GameMode;
   health: number;
   maxHealth: number;
-  potions: number;
   equippedWeapon: Card | null;
   deck: Card[];
   room: Card[];

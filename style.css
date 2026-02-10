@@ -1,3 +1,4 @@
+
 /* Reset & Base */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 :root {
@@ -18,40 +19,49 @@ body {
   overflow-x: hidden;
 }
 
-/* --- COMMENTO JUNIOR: Ho spostato il puntatore dell'immagine nella nuova 
-   cartella 'assets/images'. Se vedi tutto nero, controlla di aver messo 
-   il file 'demon.jpg' nel posto giusto! --- */
+/* --- BACKGROUND ENGINE --- */
 .global-game-bg {
   position: fixed;
   inset: 0;
   z-index: -2;
-  /* Ora il gioco cerca l'immagine nella tua cartella locale */
-  background-image: url('./assets/images/demon.jpg');
+  background-color: #050505;
+  background-image: 
+    linear-gradient(to bottom, rgba(2, 6, 23, 0.4), rgba(2, 6, 23, 0.9)),
+    url('https://images.unsplash.com/photo-1519074063912-9e15741f0212?q=80&w=2564&auto=format&fit=crop');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  filter: brightness(0.35) contrast(1.2) saturate(0.9);
-  transition: filter 1s ease-in-out;
+  filter: brightness(0.4) contrast(1.1) saturate(0.8);
+  transition: filter 1s ease-in-out, transform 2s ease-in-out;
 }
 
-/* Overlay per focus e vignettatura */
+.bg-playing {
+  filter: brightness(0.25) contrast(1.3) blur(4px);
+  transform: scale(1.1);
+}
+
 .global-overlay {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(circle at center, rgba(2, 6, 23, 0.2) 0%, rgba(2, 6, 23, 0.9) 100%);
+  background: radial-gradient(circle at center, rgba(2, 6, 23, 0) 0%, rgba(2, 6, 23, 0.8) 100%);
   pointer-events: none;
 }
 
-/* Quando si è in partita, lo sfondo si scurisce leggermente di più per far risaltare le carte */
-.bg-playing {
-  filter: brightness(0.25) contrast(1.3) blur(2px);
+/* Animations */
+@keyframes flash-red {
+  0%, 100% { background-color: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+  50% { background-color: #7f1d1d; box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
+}
+
+.animate-flash-red {
+  animation: flash-red 0.6s infinite ease-in-out;
 }
 
 /* Card Container Base */
 .card {
   position: relative;
-  background: rgba(15, 23, 42, 0.9); /* Resa semi-trasparente per far intravedere il demone */
+  background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(8px);
   border-radius: 12px;
   width: 160px;
@@ -68,6 +78,22 @@ body {
 }
 
 .card:hover { transform: translateY(-5px); border-color: #334155; }
+
+.card-animate {
+  opacity: 0;
+  animation: card-entrance 0.5s cubic-bezier(0.2, 0.8, 0.2, 1.0) forwards;
+}
+
+@keyframes card-entrance {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
 .card-selected { 
   border-color: var(--gold) !important; 

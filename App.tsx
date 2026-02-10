@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, Card, GameMode, ActionResponse, GameStats, SessionStats, Suit } from './types';
-import { createDeck } from './constants';
+import { createDeck, getCardType } from './constants';
 import HUD from './components/HUD';
 import Room from './components/Room';
 import RulesModal from './components/RulesModal';
+import StatsModal from './components/StatsModal';
 import Toast from './components/Toast';
 import TutorialOverlay from './components/TutorialOverlay';
 
 const INITIAL_HEALTH = 20;
-const POTION_HEAL = 7;
 const STATS_KEY = "scoundrel_react_stats_v1";
 
 const INITIAL_SESSION_STATS: SessionStats = {
@@ -17,7 +16,6 @@ const INITIAL_SESSION_STATS: SessionStats = {
   enemiesDefeated: 0,
   damageTaken: 0,
   healingDone: 0,
-  potionsUsed: 0,
   runsUsed: 0,
   weaponsEquipped: 0,
 };
@@ -30,10 +28,10 @@ const INITIAL_GLOBAL_STATS: GameStats = {
   totalEnemiesDefeated: 0,
   totalDamageTaken: 0,
   totalHealingDone: 0,
-  totalPotionsUsed: 0,
   totalRunsUsed: 0,
   totalWeaponsEquipped: 0,
   bestRun: { rooms: 0, enemies: 0 },
+  lastGame: null,
 };
 
 interface FloatingText {
@@ -64,7 +62,6 @@ const App: React.FC = () => {
     mode: "normal",
     health: INITIAL_HEALTH,
     maxHealth: INITIAL_HEALTH,
-    potions: 3,
     equippedWeapon: null,
     deck: [],
     room: [],
@@ -77,6 +74,7 @@ const App: React.FC = () => {
   });
 
   const [globalStats, setGlobalStats] = useState<GameStats>(INITIAL_GLOBAL_STATS);
+  const [gameStartTime, setGameStartTime] = useState<number>(0);
   const [toasts, setToasts] = useState<{id: number, message: string, kind: string}[]>([]);
   const [showRules, setShowRules] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -97,7 +95,6 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Fixed: replaced incorrect 'Hub.JSON.stringify' with standard 'JSON.stringify'
     if (globalStats.totalGames > 0) localStorage.setItem(STATS_KEY, JSON.stringify(globalStats));
   }, [globalStats]);
 
@@ -153,6 +150,7 @@ const App: React.FC = () => {
 
   const updateGlobalStats = (result: "won" | "lost", session: SessionStats) => {
     if (isTutorial) return;
+    const duration = Math.floor((Date.now() - gameStartTime) / 1000);
     setGlobalStats(prev => {
       const next = { ...prev };
       next.totalGames += 1;
@@ -161,11 +159,19 @@ const App: React.FC = () => {
       next.totalEnemiesDefeated += session.enemiesDefeated;
       next.totalDamageTaken += session.damageTaken;
       next.totalHealingDone += session.healingDone;
-      next.totalPotionsUsed += session.potionsUsed;
       next.totalRunsUsed += session.runsUsed;
       next.totalWeaponsEquipped += session.weaponsEquipped;
       if (session.roomsReached > next.bestRun.rooms) next.bestRun.rooms = session.roomsReached;
       if (session.enemiesDefeated > next.bestRun.enemies) next.bestRun.enemies = session.enemiesDefeated;
+      
+      next.lastGame = {
+        status: result,
+        rooms: session.roomsReached,
+        enemies: session.enemiesDefeated,
+        duration: duration,
+        timestamp: Date.now()
+      };
+
       return next;
     });
   };
@@ -201,8 +207,8 @@ const App: React.FC = () => {
   const startNewGame = (mode: GameMode, forceTutorial: boolean = false) => {
     setIsTutorial(forceTutorial);
     setTutorialStep(0);
+    setGameStartTime(Date.now());
     let newDeck = createDeck();
-    // Fix: Explicitly type tutorial cards as Card to match state definition
     let firstRoom: Card[] = forceTutorial ? [
       { id: 'tut-m1', suit: 'Fiori' as Suit, rank: '5', value: 5 },
       { id: 'tut-w1', suit: 'Quadri' as Suit, rank: '8', value: 8 },
@@ -215,7 +221,6 @@ const App: React.FC = () => {
       mode,
       health: INITIAL_HEALTH,
       maxHealth: INITIAL_HEALTH,
-      potions: 3,
       equippedWeapon: null,
       deck: newDeck,
       room: firstRoom,
@@ -230,23 +235,22 @@ const App: React.FC = () => {
   };
 
   const validateAction = (actionType: string): ActionResponse => {
-    const { selectedCardId, room, equippedWeapon, potions, health, fugaDisponibile } = gameState;
+    const { selectedCardId, room, equippedWeapon, health, fugaDisponibile } = gameState;
     const selectedCard = room.find(c => c.id === selectedCardId);
+    
     if (isTutorial) {
        if (tutorialStep === 1 && actionType !== "SELECT_CARD") return { ok: false, severity: "block", message: "Seleziona il mostro!" };
        if (tutorialStep === 2 && actionType !== "UNARMED") return { ok: false, severity: "block", message: "Usa Mani Nude!" };
        if (tutorialStep === 4 && actionType !== "WEAPON") return { ok: false, severity: "block", message: "Equipaggia l'arma!" };
     }
+
     if (actionType === "FUGA") {
       if (!fugaDisponibile) return { ok: false, severity: "block", message: "Ritirata non disponibile!" };
       return { ok: true, severity: "success", message: "Fuga!" };
     }
-    if (actionType === "POTION_STOCK") {
-      if (potions <= 0) return { ok: false, severity: "block", message: "Nessuna pozione!" };
-      if (health >= 20) return { ok: false, severity: "warn", message: "Salute massima!" };
-      return { ok: true, severity: "success", message: "Cura..." };
-    }
+
     if (!selectedCardId) return { ok: false, severity: "block", message: "Scegli una carta!" };
+    
     switch (actionType) {
       case "UNARMED":
         if (selectedCard?.suit !== "Fiori" && selectedCard?.suit !== "Picche") return { ok: false, severity: "block", message: "Attacca solo mostri!" };
@@ -261,6 +265,7 @@ const App: React.FC = () => {
         return { ok: false, severity: "block", message: "Azione non valida." };
       case "POTION_ROOM":
         if (selectedCard?.suit !== "Cuori") return { ok: false, severity: "block", message: "Non è una pozione." };
+        if (health >= 20) return { ok: false, severity: "warn", message: "Salute massima!" };
         return { ok: true, severity: "success", message: "Cura!" };
       default: return { ok: false, severity: "block", message: "Azione ignota." };
     }
@@ -295,21 +300,6 @@ const App: React.FC = () => {
 
     const { selectedCardId, room } = gameState;
     const selectedCard = room.find(c => c.id === selectedCardId);
-
-    if (actionType === "POTION_STOCK") {
-      setGameState(prev => {
-        let next = { ...prev };
-        const actualHeal = Math.min(prev.maxHealth - prev.health, POTION_HEAL);
-        next.health += actualHeal;
-        next.potions -= 1;
-        next.sessionStats.healingDone += actualHeal;
-        next.sessionStats.potionsUsed += 1;
-        addFloatingText(getRandomOnomatopoeia('potion', actualHeal), "heal", false, 50);
-        triggerEffect("animate-heal");
-        return next;
-      });
-      return;
-    }
 
     if (!selectedCard) return;
 
@@ -391,13 +381,20 @@ const App: React.FC = () => {
     setGameState(prev => ({ ...prev, selectedCardId: id === prev.selectedCardId ? null : id }));
   };
 
+  const handlePotionButtonClick = () => {
+    const selectedCard = gameState.room.find(c => c.id === gameState.selectedCardId);
+    if (selectedCard && selectedCard.suit === "Cuori") {
+      applyAction("POTION_ROOM");
+    } else {
+      addToast("Seleziona una carta Cuori per curarti!", "warn");
+    }
+  };
+
   return (
     <div className={`min-h-screen flex flex-col p-4 md:p-8 relative overflow-hidden transition-all duration-300 ${visualEffect?.includes('blood-vignette') ? 'blood-vignette' : ''}`}>
-      {/* Background persistente per tutto il gioco */}
       <div className={`global-game-bg ${gameState.status === 'playing' ? 'bg-playing' : ''}`} />
       <div className="global-overlay" />
 
-      {/* VFX Layers */}
       <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''} ${visualEffect?.includes('glitch-chromatic') ? 'glitch-chromatic' : ''}`} />
       
       {visualEffect?.includes('screen-crack') && <div className="screen-crack" />}
@@ -445,29 +442,28 @@ const App: React.FC = () => {
           <HUD state={gameState} effectClass={visualEffect || undefined} />
           <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={handleSelect} isExiting={isFleeing} dyingCardId={dyingCardId} />
 
-          {/* Action Controls */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 bg-slate-900/70 backdrop-blur-2xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative z-40">
-            <button id="unarmed-btn" onClick={() => applyAction("UNARMED")} className="group py-5 bg-orange-700 hover:bg-orange-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+            <button id="unarmed-btn" onClick={() => applyAction("DISARMATO")} className="group py-5 bg-orange-700 hover:bg-orange-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
               <span className="relative z-10">Mani Nude</span>
               <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
             </button>
-            <button id="weapon-btn" onClick={() => applyAction("WEAPON")} className="group py-5 bg-blue-700 hover:bg-blue-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+            <button id="weapon-btn" onClick={() => applyAction("ARMA")} className="group py-5 bg-blue-700 hover:bg-blue-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
               <span className="relative z-10">Attacca/Equip</span>
               <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
             </button>
-            <button onClick={() => applyAction("POTION_STOCK")} className="group py-5 bg-emerald-700 hover:bg-emerald-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
-              <span className="relative z-10">Pozione</span>
+            <button onClick={handlePotionButtonClick} className="group py-5 bg-emerald-700 hover:bg-emerald-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+              <span className="relative z-10">Cura (Cuori)</span>
               <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
             </button>
-            <button onClick={() => applyAction("FUGA")} className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 shadow-lg ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-950 hover:bg-slate-600 text-white' : 'bg-slate-900/50 text-slate-500 border-black opacity-50 cursor-not-allowed'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>Ritirata</button>
+            <button onClick={() => applyAction("FUGGI")} className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 shadow-lg ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-950 hover:bg-slate-600 text-white' : 'bg-slate-900/50 text-slate-500 border-black opacity-50 cursor-not-allowed'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>Ritirata</button>
           </div>
         </div>
       )}
 
       {isTutorial && <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s + 1)} onComplete={() => setIsTutorial(false)} />}
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
+      {showStats && <StatsModal stats={globalStats} onClose={() => setShowStats(false)} />}
       
-      {/* Toast notifications layer */}
       <div className="fixed top-8 right-8 z-[1000] flex flex-col gap-2">
         {toasts.map(toast => (
           <Toast key={toast.id} message={toast.message} kind={toast.kind} />

@@ -1,7 +1,7 @@
-# Cartella Immagini di Scoundrel
+# Cartella Asset Grafici
 
-Inserisci qui i tuoi file grafici.
-Il gioco è configurato per caricare lo sfondo da:
-`./assets/images/demon.jpg`
+Per personalizzare lo sfondo del gioco:
+1. Inserisci un'immagine in questa cartella.
+2. Rinominala esattamente in `sfondo.png`.
 
-Assicurati che l'estensione sia esattamente `.jpg`.
+Nota: Se il file non è presente, il gioco caricherà automaticamente un'immagine di atmosfera dark-fantasy da internet (Unsplash).
