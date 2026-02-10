@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, Card, GameMode, ActionResponse, GameStats, SessionStats, Suit } from './types';
-import { createDeck, getCardType } from './constants';
+import { createDeck, getCardType, generatePixelArtSVG } from './constants';
 import HUD from './components/HUD';
 import Room from './components/Room';
 import RulesModal from './components/RulesModal';
@@ -18,6 +19,7 @@ const INITIAL_SESSION_STATS: SessionStats = {
   healingDone: 0,
   runsUsed: 0,
   weaponsEquipped: 0,
+  potionsUsed: 0,
 };
 
 const INITIAL_GLOBAL_STATS: GameStats = {
@@ -30,6 +32,7 @@ const INITIAL_GLOBAL_STATS: GameStats = {
   totalHealingDone: 0,
   totalRunsUsed: 0,
   totalWeaponsEquipped: 0,
+  totalPotionsUsed: 0,
   bestRun: { rooms: 0, enemies: 0 },
   lastGame: null,
 };
@@ -85,17 +88,26 @@ const App: React.FC = () => {
   const [isFleeing, setIsFleeing] = useState(false);
   const [dyingCardId, setDyingCardId] = useState<string | null>(null);
   const [isHitStopped, setIsHitStopped] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const [isTutorial, setIsTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
 
   useEffect(() => {
     const saved = localStorage.getItem(STATS_KEY);
-    if (saved) setGlobalStats(JSON.parse(saved));
+    if (saved) {
+      try {
+        setGlobalStats(JSON.parse(saved));
+      } catch (e) { 
+        console.error("Errore parse statistiche:", e); 
+      }
+    }
   }, []);
 
   useEffect(() => {
-    if (globalStats.totalGames > 0) localStorage.setItem(STATS_KEY, JSON.stringify(globalStats));
+    if (globalStats.totalGames > 0) {
+      localStorage.setItem(STATS_KEY, JSON.stringify(globalStats));
+    }
   }, [globalStats]);
 
   const addToast = (message: string, kind: string = "info") => {
@@ -112,33 +124,26 @@ const App: React.FC = () => {
     const potions = ["SLURP!", "GLUG!", "SPLASH!", "AHHH!", "REFRESH!"];
     const equip = ["CLICK!", "SNAP!", "GOTCHA!", "SHINY!", "READY!"];
 
-    if (type === 'weapon') {
-      const list = value >= 10 ? heavyWeaponHits : weaponHits;
-      return list[Math.floor(Math.random() * list.length)];
-    }
-    if (type === 'unarmed') {
-      const list = value >= 10 ? heavyUnarmedHits : unarmedHits;
-      return list[Math.floor(Math.random() * list.length)];
-    }
+    if (type === 'weapon') return (value >= 10 ? heavyWeaponHits : weaponHits)[Math.floor(Math.random() * weaponHits.length)];
+    if (type === 'unarmed') return (value >= 10 ? heavyUnarmedHits : unarmedHits)[Math.floor(Math.random() * unarmedHits.length)];
     if (type === 'potion') return potions[Math.floor(Math.random() * potions.length)];
     return equip[Math.floor(Math.random() * equip.length)];
   };
 
   const addFloatingText = (text: string, type: 'damage' | 'heal' | 'action' | 'equip', isUnarmed: boolean = false, xPos: number = 50) => {
-    const id = Date.now() + Math.random();
-    const y = 45 + Math.random() * 10; 
-    setFloatingTexts(prev => [...prev, { id, text, type, x: xPos, y, isUnarmed }]);
+    const id = Math.random();
+    setFloatingTexts(prev => [...prev, { id, text, type, x: xPos, y: 45 + Math.random() * 10, isUnarmed }]);
     setTimeout(() => setFloatingTexts(prev => prev.filter(ft => ft.id !== id)), 1200);
   };
 
   const triggerExplosion = (x: number = 50, y: number = 50, color: string = "#ef4444") => {
-    const id = Date.now() + Math.random();
+    const id = Math.random();
     setExplosions(prev => [...prev, { id, x, y, color }]);
     setTimeout(() => setExplosions(prev => prev.filter(e => e.id !== id)), 800);
   };
 
   const triggerSlash = (x: number = 50, y: number = 50) => {
-    const id = Date.now() + Math.random();
+    const id = Math.random();
     setSlashes(prev => [...prev, { id, x, y }]);
     setTimeout(() => setSlashes(prev => prev.filter(s => s.id !== id)), 450);
   };
@@ -161,17 +166,10 @@ const App: React.FC = () => {
       next.totalHealingDone += session.healingDone;
       next.totalRunsUsed += session.runsUsed;
       next.totalWeaponsEquipped += session.weaponsEquipped;
+      next.totalPotionsUsed += session.potionsUsed;
       if (session.roomsReached > next.bestRun.rooms) next.bestRun.rooms = session.roomsReached;
       if (session.enemiesDefeated > next.bestRun.enemies) next.bestRun.enemies = session.enemiesDefeated;
-      
-      next.lastGame = {
-        status: result,
-        rooms: session.roomsReached,
-        enemies: session.enemiesDefeated,
-        duration: duration,
-        timestamp: Date.now()
-      };
-
+      next.lastGame = { status: result, rooms: session.roomsReached, enemies: session.enemiesDefeated, duration, timestamp: Date.now() };
       return next;
     });
   };
@@ -207,13 +205,14 @@ const App: React.FC = () => {
   const startNewGame = (mode: GameMode, forceTutorial: boolean = false) => {
     setIsTutorial(forceTutorial);
     setTutorialStep(0);
+    setImageError(false);
     setGameStartTime(Date.now());
     let newDeck = createDeck();
     let firstRoom: Card[] = forceTutorial ? [
-      { id: 'tut-m1', suit: 'Fiori' as Suit, rank: '5', value: 5 },
+      { id: 'tut-m1', suit: 'Picche' as Suit, rank: '5', value: 5 },
       { id: 'tut-w1', suit: 'Quadri' as Suit, rank: '8', value: 8 },
       { id: 'tut-p1', suit: 'Cuori' as Suit, rank: '4', value: 4 },
-      { id: 'tut-m2', suit: 'Picche' as Suit, rank: '7', value: 7 },
+      { id: 'tut-m2', suit: 'Fiori' as Suit, rank: 'J', value: 11 },
     ] : newDeck.splice(0, 4);
 
     setGameState({
@@ -239,9 +238,13 @@ const App: React.FC = () => {
     const selectedCard = room.find(c => c.id === selectedCardId);
     
     if (isTutorial) {
-       if (tutorialStep === 1 && actionType !== "SELECT_CARD") return { ok: false, severity: "block", message: "Seleziona il mostro!" };
-       if (tutorialStep === 2 && actionType !== "UNARMED") return { ok: false, severity: "block", message: "Usa Mani Nude!" };
+       if (tutorialStep === 1 && actionType !== "SELECT_CARD") return { ok: false, severity: "block", message: "Seleziona il mostro (Picche)!" };
+       if (tutorialStep === 2 && actionType !== "UNARMED") return { ok: false, severity: "block", message: "Devi usare Mani Nude ora!" };
+       if (tutorialStep === 3 && actionType !== "SELECT_CARD") return { ok: false, severity: "block", message: "Seleziona l'arma (Quadri)!" };
        if (tutorialStep === 4 && actionType !== "WEAPON") return { ok: false, severity: "block", message: "Equipaggia l'arma!" };
+       if (tutorialStep === 5 && actionType !== "SELECT_CARD") return { ok: false, severity: "block", message: "Seleziona la pozione (Cuori)!" };
+       if (tutorialStep === 6 && actionType !== "POTION_ROOM") return { ok: false, severity: "block", message: "Usa la pozione della stanza!" };
+       if (tutorialStep < 7 && actionType === "FUGA") return { ok: false, severity: "block", message: "Fuggire non è ancora parte del piano." };
     }
 
     if (actionType === "FUGA") {
@@ -249,6 +252,7 @@ const App: React.FC = () => {
       return { ok: true, severity: "success", message: "Fuga!" };
     }
 
+    if (actionType === "SELECT_CARD") return { ok: true, severity: "success", message: "" };
     if (!selectedCardId) return { ok: false, severity: "block", message: "Scegli una carta!" };
     
     switch (actionType) {
@@ -278,6 +282,13 @@ const App: React.FC = () => {
       return;
     }
 
+    if (isTutorial) {
+      if (tutorialStep === 2 && actionType === "UNARMED") setTutorialStep(3);
+      if (tutorialStep === 4 && actionType === "WEAPON") setTutorialStep(5);
+      if (tutorialStep === 6 && actionType === "POTION_ROOM") setTutorialStep(7);
+      if (tutorialStep === 7 && actionType === "FUGA") setTutorialStep(8);
+    }
+
     if (actionType === "FUGA") {
       setIsFleeing(true);
       triggerEffect("flash-blue animate-shake glitch-chromatic");
@@ -300,7 +311,6 @@ const App: React.FC = () => {
 
     const { selectedCardId, room } = gameState;
     const selectedCard = room.find(c => c.id === selectedCardId);
-
     if (!selectedCard) return;
 
     const cardIdx = room.findIndex(c => c.id === selectedCardId);
@@ -331,7 +341,6 @@ const App: React.FC = () => {
     }
 
     setDyingCardId(selectedCard.id);
-    
     setTimeout(() => {
       setGameState(prev => {
         let next = { ...prev };
@@ -361,6 +370,7 @@ const App: React.FC = () => {
             const roomHeal = Math.min(prev.maxHealth - prev.health, card.value);
             next.health += roomHeal;
             next.sessionStats.healingDone += roomHeal;
+            next.sessionStats.potionsUsed += 1;
             next.room = prev.room.filter(c => c.id !== selectedCardId);
             break;
         }
@@ -378,16 +388,20 @@ const App: React.FC = () => {
   };
 
   const handleSelect = (id: string) => {
+    const card = gameState.room.find(c => c.id === id);
+    if (!card) return;
+    if (isTutorial) {
+       if (tutorialStep === 1 && card.suit === 'Picche') setTutorialStep(2);
+       if (tutorialStep === 3 && card.suit === 'Quadri') setTutorialStep(4);
+       if (tutorialStep === 5 && card.suit === 'Cuori') setTutorialStep(6);
+    }
     setGameState(prev => ({ ...prev, selectedCardId: id === prev.selectedCardId ? null : id }));
   };
 
   const handlePotionButtonClick = () => {
     const selectedCard = gameState.room.find(c => c.id === gameState.selectedCardId);
-    if (selectedCard && selectedCard.suit === "Cuori") {
-      applyAction("POTION_ROOM");
-    } else {
-      addToast("Seleziona una carta Cuori per curarti!", "warn");
-    }
+    if (selectedCard && selectedCard.suit === "Cuori") applyAction("POTION_ROOM");
+    else addToast("Seleziona una carta Cuori per curarti!", "warn");
   };
 
   return (
@@ -396,7 +410,6 @@ const App: React.FC = () => {
       <div className="global-overlay" />
 
       <div className={`fixed inset-0 pointer-events-none z-[400] transition-opacity duration-300 ${visualEffect?.includes('flash-red-heavy') ? 'flash-red-heavy' : ''} ${visualEffect?.includes('flash-blue') ? 'flash-blue' : ''} ${visualEffect?.includes('glitch-chromatic') ? 'glitch-chromatic' : ''}`} />
-      
       {visualEffect?.includes('screen-crack') && <div className="screen-crack" />}
 
       {explosions.map(exp => (
@@ -404,13 +417,11 @@ const App: React.FC = () => {
           <div className="shockwave" style={{ borderColor: exp.color }} />
         </div>
       ))}
-
       {slashes.map(s => (
         <div key={s.id} className="fixed inset-0 pointer-events-none z-[450]" style={{ left: `${s.x}%`, top: `${s.y}%` }}>
           <div className="slash-effect" />
         </div>
       ))}
-
       {floatingTexts.map(ft => (
         <div key={ft.id} className={`floating-text fixed pointer-events-none z-[1000] ${ft.type === 'damage' ? 'text-red-500' : ft.type === 'heal' ? 'text-emerald-400' : ft.type === 'equip' ? 'text-yellow-400' : 'text-blue-400'} ${ft.isUnarmed ? 'text-7xl scale-150 font-black italic' : 'text-5xl font-black'}`} style={{ left: `${ft.x}%`, top: `${ft.y}%` }}>
           {ft.text}
@@ -434,6 +445,23 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col items-center justify-center z-10 text-white">
           <div className={`p-16 rounded-[60px] border-4 flex flex-col items-center w-full max-w-xl backdrop-blur-xl ${gameState.status === "won" ? 'border-emerald-500 bg-emerald-950/40 shadow-[0_0_40px_rgba(16,185,129,0.3)]' : 'border-red-900 bg-red-950/40 shadow-[0_0_40px_rgba(185,28,28,0.3)]'}`}>
               <h1 className={`text-8xl font-black mb-10 text-center title-font ${gameState.status === "won" ? 'text-emerald-400' : 'text-red-600'}`}>{gameState.status === "won" ? "EROE" : "CADUTO"}</h1>
+              
+              <div className="w-[250px] h-[250px] mb-10 flex items-center justify-center relative">
+                {!imageError ? (
+                  <img 
+                    src="./assets/images/morte.png" 
+                    className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(220,38,38,0.5)] animate-pulse" 
+                    alt="Morte"
+                    onError={() => {
+                      console.warn("Path assets/images/morte.png non risolto. Fallback attivato.");
+                      setImageError(true);
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full grayscale brightness-75 drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] animate-pulse" dangerouslySetInnerHTML={{ __html: generatePixelArtSVG('monster', 14) }} />
+                )}
+              </div>
+
               <button onClick={() => setGameState(prev => ({ ...prev, status: "start" }))} className="w-full py-6 bg-white text-slate-950 font-black rounded-3xl hover:scale-105 transition-all uppercase tracking-widest shadow-2xl">RITENTA</button>
           </div>
         </div>
@@ -443,19 +471,19 @@ const App: React.FC = () => {
           <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={handleSelect} isExiting={isFleeing} dyingCardId={dyingCardId} />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 bg-slate-900/70 backdrop-blur-2xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative z-40">
-            <button id="unarmed-btn" onClick={() => applyAction("DISARMATO")} className="group py-5 bg-orange-700 hover:bg-orange-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+            <button id="unarmed-btn" onClick={() => applyAction("UNARMED")} className="group py-5 bg-orange-700 hover:bg-orange-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
               <span className="relative z-10">Mani Nude</span>
               <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
             </button>
-            <button id="weapon-btn" onClick={() => applyAction("ARMA")} className="group py-5 bg-blue-700 hover:bg-blue-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+            <button id="weapon-btn" onClick={() => applyAction("WEAPON")} className="group py-5 bg-blue-700 hover:bg-blue-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-blue-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
               <span className="relative z-10">Attacca/Equip</span>
               <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
             </button>
-            <button onClick={handlePotionButtonClick} className="group py-5 bg-emerald-700 hover:bg-emerald-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
+            <button id="potion-btn" onClick={handlePotionButtonClick} className="group py-5 bg-emerald-700 hover:bg-emerald-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-emerald-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">
               <span className="relative z-10">Cura (Cuori)</span>
               <div className="absolute inset-0 bg-white/5 translate-y-full group-hover:translate-y-0 transition-transform" />
             </button>
-            <button onClick={() => applyAction("FUGGI")} className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 shadow-lg ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-950 hover:bg-slate-600 text-white' : 'bg-slate-900/50 text-slate-500 border-black opacity-50 cursor-not-allowed'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>Ritirata</button>
+            <button id="flee-btn" onClick={() => applyAction("FUGA")} className={`py-5 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 active:border-b-0 active:translate-y-1 shadow-lg ${gameState.fugaDisponibile && gameState.room.length > 1 ? 'bg-slate-700 border-slate-950 hover:bg-slate-600 text-white' : 'bg-slate-900/50 text-slate-500 border-black opacity-50 cursor-not-allowed'}`} disabled={!gameState.fugaDisponibile || gameState.room.length < 2}>Ritirata</button>
           </div>
         </div>
       )}

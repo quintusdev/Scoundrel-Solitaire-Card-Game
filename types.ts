@@ -27,6 +27,7 @@ export interface GameStats {
   totalHealingDone: number;
   totalRunsUsed: number;
   totalWeaponsEquipped: number;
+  totalPotionsUsed: number;
   bestRun: { rooms: number; enemies: number };
   lastGame: RunSummary | null;
 }
@@ -38,6 +39,7 @@ export interface SessionStats {
   healingDone: number;
   runsUsed: number;
   weaponsEquipped: number;
+  potionsUsed: number;
 }
 
 export interface GameState {

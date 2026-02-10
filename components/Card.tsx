@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card as CardType } from '../types';
 import { getSuitIcon, getCardType, generatePixelArtSVG } from '../constants';
@@ -27,6 +28,7 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, 
 
   return (
     <div 
+      id={`card-${card.suit}-${card.value}`} // ID fondamentale per il tutorial
       onClick={isDying || isExiting ? undefined : onClick}
       style={{ animationDelay }}
       className={`
@@ -41,8 +43,6 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, 
       {/* VFX Impact Ring inside card */}
       {isDying && <div className="impact-ring" />}
 
-      {/* --- COMMENTO JUNIOR: La parte grafica degli angoli. 
-         Ho dovuto ruotare quella sotto sennò era brutta. --- */}
       <div className={`card-corner w-full flex justify-between font-black text-xl z-10 ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
         <span>{card.rank}</span>
         <span>{getSuitIcon(card.suit)}</span>
@@ -59,7 +59,6 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, 
           <span className={`text-5xl font-black title-font drop-shadow-lg ${isSelected ? 'text-yellow-400' : 'text-white'}`}>
             {card.value}
           </span>
-          {/* Indicatore di potenza visivo (barre) */}
           <div className="flex gap-0.5 mt-1 justify-center">
             {Array.from({ length: Math.ceil(card.value / 2) }).map((_, i) => (
               <div key={i} className={`w-1 h-2 rounded-sm ${isSelected ? 'bg-yellow-400' : (isRed ? 'bg-red-500' : 'bg-blue-500')}`} />
@@ -73,7 +72,6 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, 
         <span>{getSuitIcon(card.suit)}</span>
       </div>
 
-      {/* Texture pixelata di sottofondo */}
       <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/pixel-weave.png')]" />
     </div>
   );

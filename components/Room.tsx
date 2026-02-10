@@ -13,7 +13,7 @@ interface RoomProps {
 
 const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false, dyingCardId = null }) => {
   return (
-    <div className="flex flex-row flex-nowrap gap-4 md:gap-8 flex-1 items-center justify-center overflow-x-auto pb-8 scrollbar-hide">
+    <div id="room-container" className="flex flex-row flex-nowrap gap-4 md:gap-8 flex-1 items-center justify-center overflow-x-auto pb-8 scrollbar-hide">
       {cards.map((card, index) => (
         <div key={card.id} className="min-w-[140px] md:min-w-[180px]">
           <Card 
@@ -27,8 +27,8 @@ const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = fa
         </div>
       ))}
       {cards.length === 0 && !isExiting && (
-        <div className="py-20 text-slate-600 text-center animate-pulse w-full">
-          La stanza è vuota... prossima stanza in arrivo...
+        <div className="py-20 text-slate-600 text-center animate-pulse w-full font-black uppercase tracking-[0.2em] text-xs">
+          Area svuotata... ricarica mazzo
         </div>
       )}
     </div>

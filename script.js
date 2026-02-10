@@ -402,8 +402,15 @@ function handleAction(type) {
     }
 
   } else if (type === "potion" && selected.suit === "Cuori") {
+    const cardEl = document.querySelector(".card.selected");
+    if (cardEl) {
+      cardEl.classList.add("animate-heal");
+    }
     heal(selected.value);
-    removeCard(selected.id);
+    // Ritardo per permettere all'animazione di completarsi
+    setTimeout(() => {
+      removeCard(selected.id);
+    }, 600);
   }
 }
 

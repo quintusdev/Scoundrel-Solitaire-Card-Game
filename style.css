@@ -19,6 +19,31 @@ body {
   overflow-x: hidden;
 }
 
+/* --- TUTORIAL HIGHLIGHT SYSTEM --- */
+.tutorial-cutout {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 450;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), transparent var(--radius, 100px), rgba(0,0,0,0.85) 120px);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.highlight-target {
+  position: relative;
+  z-index: 501 !important;
+  box-shadow: 0 0 0 4px var(--blue), 0 0 40px var(--blue);
+  animation: pulse-highlight 2s infinite;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% { box-shadow: 0 0 0 2px var(--blue), 0 0 20px var(--blue); }
+  50% { box-shadow: 0 0 0 6px var(--blue), 0 0 50px var(--blue); }
+}
+
 /* --- BACKGROUND ENGINE --- */
 .global-game-bg {
   position: fixed;
@@ -56,6 +81,17 @@ body {
 
 .animate-flash-red {
   animation: flash-red 0.6s infinite ease-in-out;
+}
+
+@keyframes heal-glow {
+  0% { box-shadow: 0 0 0px rgba(16, 185, 129, 0); transform: scale(1); filter: brightness(1); }
+  50% { box-shadow: 0 0 60px rgba(16, 185, 129, 1); transform: scale(1.1); filter: brightness(1.4); }
+  100% { box-shadow: 0 0 0px rgba(16, 185, 129, 0); transform: scale(1); filter: brightness(1); }
+}
+
+.animate-heal {
+  animation: heal-glow 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+  z-index: 100 !important;
 }
 
 /* Card Container Base */
