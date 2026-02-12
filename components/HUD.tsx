@@ -11,73 +11,65 @@ interface HUDProps {
 const HUD: React.FC<HUDProps> = ({ state, effectClass }) => {
   const selectedCard = state.room.find(c => c.id === state.selectedCardId);
   const healthPercentage = (state.health / state.maxHealth) * 100;
-  
-  // Il 20% di 20 HP è esattamente 4 HP.
   const isCritical = state.health <= 4;
 
   return (
-    <div className={`bg-slate-800/50 p-6 rounded-2xl border border-slate-700 flex flex-wrap gap-8 justify-between items-center mb-12 transition-all duration-300 ${effectClass && !effectClass.includes('animate-weapon-pop') ? effectClass : ''}`}>
-      <div id="hud-health" className="flex flex-col gap-1">
-        <div className="flex justify-between items-end mb-1">
-          <span className="text-[10px] uppercase text-slate-500 font-black tracking-[0.2em]">Salute</span>
-          <span className={`font-black text-xl leading-none transition-colors duration-300 ${isCritical ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+    <div className={`hud-glass p-3 sm:p-4 rounded-2xl flex flex-col lg:flex-row gap-3 lg:gap-6 justify-between items-center mb-2 sm:mb-4 transition-all duration-300 ${effectClass && !effectClass.includes('animate-weapon-pop') ? effectClass : ''}`}>
+      
+      {/* Sezione Salute */}
+      <div id="hud-health" className="flex flex-col gap-1 w-full lg:w-auto min-w-[180px] sm:min-w-[220px]">
+        <div className="flex justify-between items-end">
+          <span className="text-[8px] sm:text-[9px] uppercase text-slate-400 font-black tracking-widest">Salute</span>
+          <span className={`font-black text-base sm:text-lg leading-none ${isCritical ? 'text-red-500 animate-pulse' : 'text-white'}`}>
             {state.health}/{state.maxHealth}
           </span>
         </div>
         
-        <div className="w-64 h-3 bg-slate-950 rounded-full overflow-hidden border border-white/5 relative shadow-inner">
+        <div className="w-full h-2 sm:h-2.5 bg-slate-950/80 rounded-full overflow-hidden border border-white/5 relative shadow-inner">
           <div 
-            className={`h-full bg-red-600 health-bar-transition shadow-[0_0_10px_rgba(239,68,68,0.3)] ${isCritical ? 'animate-flash-red' : (state.health <= 6 ? 'animate-pulse' : '')}`} 
+            className={`h-full bg-red-600 transition-all duration-500 shadow-[0_0_8px_rgba(239,68,68,0.3)] ${isCritical ? 'animate-flash-red' : ''}`} 
             style={{ width: `${healthPercentage}%` }}
           />
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-6 md:gap-10">
-        <div id="hud-weapon" className={`text-center transition-all duration-300 ${effectClass?.includes('animate-weapon-pop') ? 'animate-weapon-pop' : ''}`}>
-          <span className="block text-[9px] uppercase text-slate-500 font-black mb-1 tracking-widest">Arma</span>
-          <span className="text-lg font-black leading-none uppercase">
-            {state.equippedWeapon ? (
-              <span className="text-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.3)]">
-                {getSuitIcon(state.equippedWeapon.suit)}{state.equippedWeapon.rank} <span className="text-xs">({state.equippedWeapon.value})</span>
-              </span>
-            ) : <span className="text-slate-600">Nuda</span>}
+      {/* Statistiche - Più compatte */}
+      <div className="grid grid-cols-4 sm:flex gap-4 sm:gap-6 w-full lg:w-auto justify-between lg:justify-center">
+        <div className="text-center">
+          <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Arma</span>
+          <span className="text-xs sm:text-base font-black uppercase text-blue-400">
+            {state.equippedWeapon ? `${getSuitIcon(state.equippedWeapon.suit)}${state.equippedWeapon.rank}` : "-"}
           </span>
         </div>
 
         <div className="text-center">
-          <span className="block text-[9px] uppercase text-slate-500 font-black mb-1 tracking-widest">Dungeon</span>
-          <span className="text-xl font-black text-white leading-none">{state.roomIndex}</span>
+          <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Stanza</span>
+          <span className="text-xs sm:text-base font-black text-white">{state.roomIndex}</span>
         </div>
 
         <div className="text-center">
-          <span className="block text-[9px] uppercase text-slate-500 font-black mb-1 tracking-widest">Nemici</span>
-          <span className="text-xl font-black text-red-500 leading-none drop-shadow-[0_0_5px_rgba(239,68,68,0.2)]">{state.enemiesDefeated}</span>
+          <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Mazzo</span>
+          <span className="text-xs sm:text-base font-black text-slate-400">{state.deck.length}</span>
         </div>
 
         <div className="text-center">
-          <span className="block text-[9px] uppercase text-slate-500 font-black mb-1 tracking-widest">Pozioni</span>
-          <span className="text-xl font-black text-emerald-500 leading-none">{state.sessionStats.potionsUsed}</span>
-        </div>
-
-        <div className="text-center hidden sm:block">
-          <span className="block text-[9px] uppercase text-slate-500 font-black mb-1 tracking-widest">Mazzo</span>
-          <span className="text-xl font-black text-slate-400 leading-none">{state.deck.length}</span>
+          <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Kills</span>
+          <span className="text-xs sm:text-base font-black text-red-500">{state.enemiesDefeated}</span>
         </div>
       </div>
 
-      <div id="hud-target" className="bg-slate-950/80 px-5 py-3 rounded-2xl border border-white/5 min-w-[180px] shadow-2xl">
+      {/* Target Info */}
+      <div id="hud-target" className="bg-slate-950/40 px-3 py-1.5 rounded-lg border border-white/5 w-full lg:min-w-[150px] lg:w-auto">
         {selectedCard ? (
-          <div>
-            <span className="text-[9px] uppercase text-slate-500 font-black block mb-1 tracking-tighter opacity-60">Bersaglio Selezionato</span>
-            <span className="font-black text-sm text-white uppercase flex items-center gap-2">
-              <span className="text-lg">{getSuitIcon(selectedCard.suit)}</span> 
-              <span>{selectedCard.rank}</span>
-              <span className="text-slate-500 text-xs ml-auto">VAL: {selectedCard.value}</span>
+          <div className="flex justify-between items-center">
+            <span className="text-[7px] sm:text-[8px] uppercase text-slate-500 font-black tracking-tight">Focus</span>
+            <span className="font-black text-[10px] sm:text-xs text-white uppercase flex items-center gap-1">
+              <span>{getSuitIcon(selectedCard.suit)}{selectedCard.rank}</span>
+              <span className="text-slate-500 opacity-60">({selectedCard.value})</span>
             </span>
           </div>
         ) : (
-          <span className="text-slate-600 italic text-xs font-medium">Nessuna selezione</span>
+          <span className="text-slate-600 italic text-[9px] block text-center">In attesa...</span>
         )}
       </div>
     </div>

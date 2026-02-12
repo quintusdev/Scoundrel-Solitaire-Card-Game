@@ -1,9 +1,20 @@
 
 import { Card, Suit } from './types';
 
+/**
+ * SCOPO DEL FILE: Configurazione globale e asset procedurali.
+ * RESPONSABILITÀ: Gestire la logica "statica" del gioco (mappe valori, generazione SVG).
+ * DIPENDENZE: types.ts
+ * IMPATTO: Estetico e Matematico. Definisce la potenza delle carte e il loro aspetto.
+ */
+
 export const SUITS: Suit[] = ["Cuori", "Quadri", "Fiori", "Picche"];
 export const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
+/**
+ * Converte il rango testuale in valore numerico.
+ * TODO: Valutare se 'A' debba valere 1 o 14 a seconda del contesto (Scoundrel standard vs custom).
+ */
 export const getCardValue = (rank: string): number => {
   switch (rank) {
     case "J": return 11;
@@ -14,6 +25,9 @@ export const getCardValue = (rank: string): number => {
   }
 };
 
+/**
+ * Determina il ruolo meccanico della carta basandosi sul seme.
+ */
 export const getCardType = (suit: Suit) => {
   if (suit === "Cuori") return "potion";
   if (suit === "Quadri") return "weapon";
@@ -21,14 +35,19 @@ export const getCardType = (suit: Suit) => {
 };
 
 /**
- * Genera un SVG Pixel Art deterministico basato su tipo e valore.
- * Include artefatti glitch e rumore basati su un seed.
+ * ENGINE GRAFICO PROCEDURALE
+ * Genera un SVG 16x16 pixel basato su semi e valori.
+ * Questa tecnica garantisce scalabilità infinita senza perdita di qualità e peso nullo.
+ * 
+ * @param type - Il tipo di oggetto (mostro, arma, pozione)
+ * @param value - Influisce sulla complessità del disegno (es. mostri più grandi)
  */
 export const generatePixelArtSVG = (type: string, value: number): string => {
-  const size = 16;
+  const size = 16; 
   const pixels: { x: number, y: number, color: string }[] = [];
   
-  // Seed deterministico basato su tipo e valore
+  // Hash deterministico basato sulla carta per garantire che una carta specifica 
+  // abbia sempre lo stesso aspetto visivo durante la sessione.
   const stringSeed = type.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const seed = (stringSeed + value) * 1337;
 
@@ -43,6 +62,7 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     }
   };
 
+  // Funzione per specchiare il disegno (usata per i mostri, per dare un senso di 'faccia')
   const drawSymmetric = (x: number, y: number, color: string) => {
     drawPixel(x, y, color);
     if (x !== 7 && x !== 8) {
@@ -50,120 +70,53 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     }
   };
 
+  // LOGICA DI DISEGNO PER TIPO
   if (type === "monster") {
-    const mainColor = value > 10 ? "#ef4444" : "#4338ca";
+    // I mostri sopra valore 10 sono colorati di rosso (Elite)
+    const mainColor = value > 10 ? "#ef4444" : "#4338ca"; 
     const darkColor = value > 10 ? "#7f1d1d" : "#312e81";
     const eyeColor = "#ffffff";
 
-    // Silhouette Base
     for (let y = 4; y <= 12; y++) {
       let width = y < 6 ? 2 : y > 10 ? 3 : 5;
       for (let x = 8 - width; x <= 7; x++) {
-        // Aggiunta di rumore nella texture del mostro
         let color = (x + y) % 3 === 0 ? darkColor : mainColor;
-        if (seededRandom(x * y) > 0.92) color = "#ffffff22"; // Sottile glitch di texture
+        // Glitch visivo casuale
+        if (seededRandom(x * y) > 0.92) color = "#ffffff22"; 
         drawSymmetric(x, y, color);
       }
     }
-
-    // Occhi
-    drawSymmetric(5, 7, eyeColor);
+    drawSymmetric(5, 7, eyeColor); 
     if (value > 6) drawSymmetric(4, 7, eyeColor);
-    
-    // Corna
-    if (value > 5) {
-      drawSymmetric(3, 3, darkColor);
-      drawSymmetric(3, 4, mainColor);
-    }
-    if (value > 10) {
-      drawSymmetric(2, 2, "#facc15");
-      drawSymmetric(4, 3, darkColor);
-    }
-    
-    // Denti
-    if (value > 8) {
-      drawSymmetric(5, 11, eyeColor);
-      drawSymmetric(7, 11, eyeColor);
-    }
-
-  } else if (type === "weapon") {
+  } 
+  
+  else if (type === "weapon") {
+    // Le armi crescono in lunghezza in base al loro valore
     const bladeColor = "#cbd5e1";
-    const darkBlade = "#64748b";
     const hiltColor = "#d97706";
     const gemColor = value > 12 ? "#3b82f6" : "#b91c1c";
 
     const bladeHeight = value;
     const startY = Math.max(1, 12 - bladeHeight);
     for (let y = startY; y <= 11; y++) {
-      let bCol = bladeColor;
-      if (seededRandom(y) > 0.85) bCol = "#ffffff"; // Glitch di riflesso sulla lama
-      drawPixel(7, y, bCol);
-      drawPixel(8, y, darkBlade);
+      drawPixel(7, y, bladeColor);
+      drawPixel(8, y, "#64748b");
     }
-    drawPixel(7, startY - 1, bladeColor);
-
     const guardWidth = value > 10 ? 3 : 2;
-    for (let x = 8 - guardWidth; x <= 7 + guardWidth; x++) {
-      drawPixel(x, 12, hiltColor);
-    }
+    for (let x = 8 - guardWidth; x <= 7 + guardWidth; x++) drawPixel(x, 12, hiltColor);
+    drawPixel(7, 14, gemColor); 
+  }
 
-    drawPixel(7, 13, "#451a03");
-    drawPixel(8, 13, "#451a03");
-    
-    drawPixel(7, 14, gemColor);
-    drawPixel(8, 14, gemColor);
-
-  } else if (type === "potion") {
-    const glassColor = "#93c5fd";
+  else if (type === "potion") {
+    // Le pozioni sono più o meno 'piene' in base al valore di cura
     const liqColor = value > 10 ? "#ec4899" : "#10b981";
-    const liqDark = value > 10 ? "#9d174d" : "#064e3b";
-
-    const isSquare = value % 2 === 0;
     const fillHeight = Math.floor((value / 14) * 8) + 1;
 
     for (let y = 6; y <= 14; y++) {
-      const w = isSquare ? 4 : (y < 8 ? 2 : y > 12 ? 3 : 5);
+      const w = y < 8 ? 2 : y > 12 ? 3 : 4;
       for (let x = 8 - w; x <= 7 + w; x++) {
         const isLiquid = y > (14 - fillHeight);
-        const isEdge = x === 8 - w || x === 7 + w || y === 14;
-        
-        let color = isEdge ? glassColor : (isLiquid ? liqColor : "#1e293b");
-        if (isLiquid && (x + y) % 4 === 0) color = liqDark;
-        
-        // Glitch di effervescenza per pozioni forti
-        if (isLiquid && value > 9 && seededRandom(x + y * 10) > 0.9) color = "#ffffff";
-        
-        drawPixel(x, y, color);
-      }
-    }
-
-    for (let y = 3; y <= 5; y++) {
-      drawPixel(7, y, glassColor);
-      drawPixel(8, y, glassColor);
-    }
-    drawPixel(7, 2, "#78350f");
-    drawPixel(8, 2, "#78350f");
-  }
-
-  // --- AGGIUNTA ARTEFATTI VISIVI (GLITCH / RUMORE) ---
-  const artifactCount = 2 + Math.floor(value / 3);
-  for (let i = 0; i < artifactCount; i++) {
-    const rX = Math.floor(seededRandom(i * 100) * 16);
-    const rY = Math.floor(seededRandom(i * 200) * 16);
-    
-    // Non disegnare glitch sopra il centro se possibile, per mantenere leggibilità
-    const isNearCenter = rX >= 6 && rX <= 9 && rY >= 4 && rY <= 12;
-    
-    if (!isNearCenter || seededRandom(i * 50) > 0.7) {
-      const glitchColors = ["#ffffff11", "#ff000022", "#00ff0011", "#0000ff11"];
-      const colorIdx = Math.floor(seededRandom(i * 300) * glitchColors.length);
-      drawPixel(rX, rY, glitchColors[colorIdx]);
-      
-      // Linee di scansione glitch orizzontali casuali
-      if (seededRandom(i * 400) > 0.9) {
-        for (let lx = 0; lx < 4; lx++) {
-          drawPixel(rX + lx, rY, "#ffffff08");
-        }
+        drawPixel(x, y, isLiquid ? liqColor : "#1e293b");
       }
     }
   }
@@ -179,6 +132,10 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
   `;
 };
 
+/**
+ * Genera un mazzo completo escludendo le figure rosse (Regola originale Scoundrel).
+ * Utilizza l'algoritmo di Fisher-Yates per lo shuffle.
+ */
 export const createDeck = (): Card[] => {
   const deck: Card[] = [];
   SUITS.forEach(suit => {
