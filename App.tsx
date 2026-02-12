@@ -87,6 +87,7 @@ const App: React.FC = () => {
   const [slashes, setSlashes] = useState<Slash[]>([]);
   const [isFleeing, setIsFleeing] = useState(false);
   const [dyingCardId, setDyingCardId] = useState<string | null>(null);
+  const [weaponDyingCardId, setWeaponDyingCardId] = useState<string | null>(null);
   const [isHitStopped, setIsHitStopped] = useState(false);
   const [imageError, setImageError] = useState(false);
   
@@ -293,6 +294,7 @@ const App: React.FC = () => {
       setIsFleeing(true);
       triggerEffect("flash-blue animate-shake glitch-chromatic");
       addToast("RITIRATA!", "warning");
+      // Sincronizzazione con l'animazione card-flee-smoke (600ms)
       setTimeout(() => {
         setGameState(prev => {
           let next = { ...prev };
@@ -332,7 +334,9 @@ const App: React.FC = () => {
       } else {
         triggerSlash(xPos, 50);
         triggerExplosion(xPos, 50, "#3b82f6");
-        triggerEffect("animate-shake flash-blue glitch-chromatic");
+        triggerEffect("animate-shake-heavy flash-blue glitch-chromatic");
+        setWeaponDyingCardId(selectedCard.id);
+        setTimeout(() => setWeaponDyingCardId(null), 500);
         addFloatingText(getRandomOnomatopoeia('weapon', selectedCard.value), "action", false, xPos);
       }
     } else if (actionType === "POTION_ROOM") {
@@ -446,7 +450,7 @@ const App: React.FC = () => {
           <div className={`p-16 rounded-[60px] border-4 flex flex-col items-center w-full max-w-xl backdrop-blur-xl ${gameState.status === "won" ? 'border-emerald-500 bg-emerald-950/40 shadow-[0_0_40px_rgba(16,185,129,0.3)]' : 'border-red-900 bg-red-950/40 shadow-[0_0_40px_rgba(185,28,28,0.3)]'}`}>
               <h1 className={`text-8xl font-black mb-10 text-center title-font ${gameState.status === "won" ? 'text-emerald-400' : 'text-red-600'}`}>{gameState.status === "won" ? "EROE" : "CADUTO"}</h1>
               
-              <div className="w-[250px] h-[250px] mb-10 flex items-center justify-center relative">
+              <div className="w-[200px] h-[200px] mb-10 flex items-center justify-center relative">
                 {!imageError ? (
                   <img 
                     src="./assets/images/morte.png" 
@@ -468,7 +472,14 @@ const App: React.FC = () => {
       ) : (
         <div className={`flex-1 flex flex-col max-w-6xl mx-auto w-full transition-transform duration-300 ${visualEffect || ''} ${isHitStopped ? 'scale-[0.98] grayscale-[0.3]' : ''}`}>
           <HUD state={gameState} effectClass={visualEffect || undefined} />
-          <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={handleSelect} isExiting={isFleeing} dyingCardId={dyingCardId} />
+          <Room 
+            cards={gameState.room} 
+            selectedId={gameState.selectedCardId} 
+            onSelect={handleSelect} 
+            isExiting={isFleeing} 
+            dyingCardId={dyingCardId} 
+            weaponDyingCardId={weaponDyingCardId}
+          />
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 bg-slate-900/70 backdrop-blur-2xl p-8 rounded-[40px] border border-white/10 shadow-2xl relative z-40">
             <button id="unarmed-btn" onClick={() => applyAction("UNARMED")} className="group py-5 bg-orange-700 hover:bg-orange-600 transition-all rounded-2xl font-black uppercase text-xs tracking-widest border-b-4 border-orange-950 active:border-b-0 active:translate-y-1 overflow-hidden relative shadow-lg">

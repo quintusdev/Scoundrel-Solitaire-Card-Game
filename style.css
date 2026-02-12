@@ -10,6 +10,8 @@
   --blue: #3b82f6;
   --monster-border: #475569;
   --gold: #facc15;
+  --cyan: #22d3ee;
+  --legendary: #f59e0b;
 }
 
 body {
@@ -19,29 +21,104 @@ body {
   overflow-x: hidden;
 }
 
-/* --- TUTORIAL HIGHLIGHT SYSTEM --- */
+/* --- TUTORIAL SYSTEM ENHANCED --- */
 .tutorial-cutout {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 450;
+  z-index: 550;
   pointer-events: none;
-  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), transparent var(--radius, 100px), rgba(0,0,0,0.85) 120px);
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), transparent var(--radius, 100px), rgba(2, 6, 23, 0.4) 150px);
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .highlight-target {
   position: relative;
-  z-index: 501 !important;
-  box-shadow: 0 0 0 4px var(--blue), 0 0 40px var(--blue);
-  animation: pulse-highlight 2s infinite;
+  z-index: 551 !important;
+  box-shadow: 0 0 0 3px var(--blue), 0 0 40px rgba(59, 130, 246, 0.6);
+  animation: pulse-target 1.5s infinite ease-in-out;
+  pointer-events: auto !important;
 }
 
-@keyframes pulse-highlight {
-  0%, 100% { box-shadow: 0 0 0 2px var(--blue), 0 0 20px var(--blue); }
-  50% { box-shadow: 0 0 0 6px var(--blue), 0 0 50px var(--blue); }
+@keyframes pulse-target {
+  0%, 100% { box-shadow: 0 0 0 2px var(--blue), 0 0 20px rgba(59, 130, 246, 0.4); transform: scale(1); }
+  50% { box-shadow: 0 0 0 5px var(--blue), 0 0 50px rgba(59, 130, 246, 0.8); transform: scale(1.03); }
+}
+
+/* --- HUD & LIFEBAR --- */
+.health-bar-transition {
+  transition: width 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@keyframes flash-red {
+  0%, 100% { background-color: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+  50% { background-color: #7f1d1d; box-shadow: 0 0 25px rgba(239, 68, 68, 1); filter: brightness(1.5); }
+}
+
+.animate-flash-red {
+  animation: flash-red 0.5s infinite ease-in-out;
+}
+
+/* --- SHAKE EFFECTS --- */
+@keyframes shake-heavy {
+  0% { transform: translate(2px, 2px) rotate(0deg); }
+  10% { transform: translate(-2px, -3px) rotate(-2deg); }
+  20% { transform: translate(-4px, 0px) rotate(2deg); }
+  30% { transform: translate(4px, 3px) rotate(0deg); }
+  40% { transform: translate(2px, -2px) rotate(2deg); }
+  50% { transform: translate(-2px, 3px) rotate(-2deg); }
+  60% { transform: translate(-4px, 2px) rotate(0deg); }
+  70% { transform: translate(4px, 2px) rotate(-2deg); }
+  80% { transform: translate(-2px, -2px) rotate(2deg); }
+  90% { transform: translate(2px, 3px) rotate(0deg); }
+  100% { transform: translate(2px, -3px) rotate(-2deg); }
+}
+
+.animate-shake-heavy {
+  animation: shake-heavy 0.15s infinite ease-in-out;
+}
+
+/* --- RARITY SYSTEM --- */
+.rarity-comune {
+  border-color: #334155 !important;
+  box-shadow: 0 0 10px rgba(255,255,255,0.05);
+}
+.rarity-comune-label {
+  color: #94a3b8;
+  border-color: #334155;
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.rarity-rara {
+  border-color: var(--cyan) !important;
+  animation: glow-cyan 3s infinite alternate;
+}
+.rarity-rara-label {
+  color: var(--cyan);
+  border-color: var(--cyan);
+  background: rgba(8, 51, 68, 0.8);
+}
+
+.rarity-leggendaria {
+  border-color: var(--legendary) !important;
+  animation: glow-gold 2s infinite alternate;
+}
+.rarity-leggendaria-label {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: rgba(69, 26, 3, 0.8);
+}
+
+@keyframes glow-cyan {
+  from { box-shadow: 0 0 5px rgba(34, 211, 238, 0.2); }
+  to { box-shadow: 0 0 20px rgba(34, 211, 238, 0.5); }
+}
+
+@keyframes glow-gold {
+  from { box-shadow: 0 0 10px rgba(245, 158, 11, 0.3), inset 0 0 5px rgba(245, 158, 11, 0.1); }
+  to { box-shadow: 0 0 35px rgba(245, 158, 11, 0.7), inset 0 0 15px rgba(245, 158, 11, 0.2); }
 }
 
 /* --- BACKGROUND ENGINE --- */
@@ -65,24 +142,6 @@ body {
   transform: scale(1.1);
 }
 
-.global-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: radial-gradient(circle at center, rgba(2, 6, 23, 0) 0%, rgba(2, 6, 23, 0.8) 100%);
-  pointer-events: none;
-}
-
-/* Animations */
-@keyframes flash-red {
-  0%, 100% { background-color: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
-  50% { background-color: #7f1d1d; box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
-}
-
-.animate-flash-red {
-  animation: flash-red 0.6s infinite ease-in-out;
-}
-
 @keyframes heal-glow {
   0% { box-shadow: 0 0 0px rgba(16, 185, 129, 0); transform: scale(1); filter: brightness(1); }
   50% { box-shadow: 0 0 60px rgba(16, 185, 129, 1); transform: scale(1.1); filter: brightness(1.4); }
@@ -94,48 +153,21 @@ body {
   z-index: 100 !important;
 }
 
-/* Card Container Base */
-.card {
-  position: relative;
-  background: rgba(15, 23, 42, 0.9);
-  backdrop-filter: blur(8px);
-  border-radius: 12px;
-  width: 160px;
-  height: 240px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 12px;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  user-select: none;
-  border: 2px solid #1e293b;
-  overflow: hidden;
-}
-
-.card:hover { transform: translateY(-5px); border-color: #334155; }
-
+/* Card Transitions */
 .card-animate {
   opacity: 0;
   animation: card-entrance 0.5s cubic-bezier(0.2, 0.8, 0.2, 1.0) forwards;
 }
 
 @keyframes card-entrance {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .card-selected { 
   border-color: var(--gold) !important; 
   transform: scale(1.08) translateY(-15px); 
   z-index: 50; 
-  box-shadow: 0 0 30px rgba(250, 204, 21, 0.6);
   animation: glow-pulse-selected 1.5s infinite alternate;
 }
 
@@ -144,52 +176,51 @@ body {
   to { box-shadow: 0 0 45px rgba(250, 204, 21, 0.7); }
 }
 
-.card-art {
-  position: absolute;
-  top: 45%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 75%;
-  height: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
+/* Fuga Fumosa */
+.card-exit-flee {
   pointer-events: none;
+  animation: card-flee-smoke 0.6s cubic-bezier(0.5, 0, 0.1, 1) forwards !important;
+}
+
+@keyframes card-flee-smoke {
+  0% { transform: scale(1) translateY(0); filter: blur(0px) brightness(1); opacity: 1; }
+  30% { transform: scale(1.1) translateY(-15px); filter: blur(4px) brightness(1.8); opacity: 0.8; }
+  100% { transform: scale(1.5) translateY(-80px); filter: blur(30px) brightness(3); opacity: 0; }
+}
+
+/* Sconfitta Carta */
+.card-defeat {
+  pointer-events: none;
+  animation: card-shatter-dissolve 0.5s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+}
+
+@keyframes card-shatter-dissolve {
+  0% { transform: scale(1); filter: brightness(1); opacity: 1; }
+  25% { transform: scale(0.9) rotate(3deg); filter: brightness(2) contrast(1.5); }
+  100% { transform: scale(0.4) rotate(-15deg); filter: brightness(0); opacity: 0; }
+}
+
+/* Testo Onomatopeico */
+.floating-text {
+  position: fixed;
+  pointer-events: none;
+  font-weight: 900;
+  z-index: 1000;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0px black;
+  animation: float-up-onomatopoeia 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
+}
+
+@keyframes float-up-onomatopoeia {
+  0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+  20% { transform: translate(-50%, -30px) scale(1.3); opacity: 1; }
+  100% { transform: translate(-50%, -120px) scale(1); opacity: 0; }
 }
 
 .card-art svg {
   width: 100%;
   height: 100%;
   shape-rendering: crispEdges;
-}
-
-.blood-vignette {
-  box-shadow: inset 0 0 150px rgba(185, 28, 28, 0.9);
-  animation: vignette-pulse 0.6s ease-out forwards;
-}
-
-.glitch-chromatic {
-  animation: chromatic-glitch 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
-}
-
-.floating-text {
-  position: fixed;
-  pointer-events: none;
-  font-weight: 900;
-  z-index: 1000;
-  font-family: 'Space Grotesk', sans-serif;
-  text-transform: uppercase;
-  animation: float-up-onomatopoeia 1s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
-  text-shadow: 3px 3px 0px black;
-}
-
-.card-defeat {
-  animation: card-shatter-dissolve 0.6s cubic-bezier(0.6, 0, 0.4, 1) forwards;
-}
-
-.card-exit-flee {
-  animation: card-flee-smoke 0.6s cubic-bezier(0.5, 0, 0.1, 1) forwards !important;
 }
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
