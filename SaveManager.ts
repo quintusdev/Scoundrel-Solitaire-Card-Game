@@ -2,7 +2,7 @@
 import { GameState, SignedSave, SaveMetadata, Difficulty } from './types';
 import { GAME_RULES } from './constants';
 
-const HMAC_SECRET = "scoundrel-vault-key-v2-architect";
+const HMAC_SECRET = "scoundrel-vault-key-v3-architect";
 
 export class SaveManager {
   private static async getHMAC(data: string): Promise<string> {
@@ -18,7 +18,10 @@ export class SaveManager {
     return btoa(String.fromCharCode(...new Uint8Array(signature)));
   }
 
-  public static async createSignedSave(state: GameState, nickname: string): Promise<SignedSave> {
+  public static async createSignedSave(state: GameState, nickname: string): Promise<SignedSave | null> {
+    // GOD Mode block
+    if (state.difficulty === 'god') return null;
+
     const stateString = JSON.stringify(state);
     const base64Data = btoa(unescape(encodeURIComponent(stateString)));
     

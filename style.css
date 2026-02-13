@@ -19,15 +19,15 @@
   animation: shimmer 2s infinite linear;
 }
 
-.god-border-glow {
-  box-shadow: 0 0 20px var(--gold-glow), inset 0 0 10px var(--gold-glow);
-  border-color: var(--gold) !important;
-  animation: border-pulse 2s infinite alternate;
+.god-ranking-text {
+  color: var(--gold);
+  text-shadow: 0 0 10px var(--gold-glow);
+  animation: gold-pulse 2s infinite ease-in-out;
 }
 
-@keyframes border-pulse {
-  from { border-color: rgba(250, 204, 21, 0.5); }
-  to { border-color: rgba(250, 204, 21, 1); }
+@keyframes gold-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.5); }
 }
 
 @keyframes shimmer {
@@ -74,22 +74,4 @@
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* Particle effect for GOD victory */
-.particle {
-  position: absolute;
-  background: var(--gold);
-  border-radius: 50%;
-  pointer-events: none;
-  animation: particle-fly 3s ease-out forwards;
-}
-
-@keyframes particle-fly {
-  0% { transform: translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--tw-translate-x), var(--tw-translate-y)) scale(0); opacity: 0; }
-}
-
-.modal-backdrop {
-  backdrop-filter: blur(8px);
 }

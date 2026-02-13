@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave } from './types';
-import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules } from './constants';
+import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules, getCardType, ETERNAL_VARIANTS } from './constants';
 import { SaveManager } from './SaveManager';
 import HUD from './components/HUD';
 import Room from './components/Room';
@@ -12,6 +12,7 @@ import Toast from './components/Toast';
 import ProfileManagerUI from './components/ProfileManagerUI';
 import DifficultySelector from './components/DifficultySelector';
 import TutorialOverlay from './components/TutorialOverlay';
+import VariantSelector from './components/VariantSelector';
 
 const EMPTY_STATS: ProfileStats = { 
   wins: 0, losses: 0, totalGames: 0, bestScore: 0,
@@ -24,6 +25,7 @@ const App: React.FC = () => {
   const [showRules, setShowRules] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showSave, setShowSave] = useState(false);
+  const [showVariants, setShowVariants] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [toasts, setToasts] = useState<{id: number, message: string, kind: string}[]>([]);
   const [profilesData, setProfilesData] = useState<ProfilesData>({ activeProfileId: null, profiles: {} });
@@ -33,7 +35,7 @@ const App: React.FC = () => {
     status: "start", difficulty: "normal", health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
     equippedWeapon: null, weaponDurability: null, deck: [], room: [], selectedCardId: null, fugaDisponibile: true,
     fugaUsataUltimaStanza: false, roomIndex: 0, enemiesDefeated: 0, startTime: 0,
-    sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0 }
+    sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: GAME_RULES.INITIAL_HEALTH }
   });
 
   const activeProfile = useMemo(() => 
@@ -52,8 +54,13 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(GAME_RULES.PROFILES_KEY, JSON.stringify(profilesData));
-  }, [profilesData]);
+    const dataToSave = { ...profilesData };
+    if (gameState.difficulty === 'god' && activeProfile) {
+       const p = dataToSave.profiles[activeProfile.id];
+       if (p) p.currentGame = null;
+    }
+    localStorage.setItem(GAME_RULES.PROFILES_KEY, JSON.stringify(dataToSave));
+  }, [profilesData, gameState.difficulty]);
 
   const updateActiveProfile = (updates: Partial<UserProfile>) => {
     if (!profilesData.activeProfileId) return;
@@ -76,7 +83,9 @@ const App: React.FC = () => {
       rankings: { normal: null, hard: null, inferno: null, god: null },
       stats: { normal: {...EMPTY_STATS}, hard: {...EMPTY_STATS}, inferno: {...EMPTY_STATS}, god: {...EMPTY_STATS}, general: {...EMPTY_STATS} },
       currentGame: null, lastGame: null,
-      saves: { normal: [null, null], hard: [null, null], inferno: [null, null], god: [null, null] }
+      saves: { normal: [null, null], hard: [null, null], inferno: [null, null], god: [null, null] },
+      eternalUnlocks: { "Guerriero": [], "Ladro": [], "Mago": [], "Paladino": [] },
+      selectedVariant: { "Guerriero": null, "Ladro": null, "Mago": null, "Paladino": null }
     };
     setProfilesData(prev => ({ ...prev, profiles: { ...prev.profiles, [id]: newProfile }, activeProfileId: id }));
     setView('main-menu');
@@ -84,6 +93,11 @@ const App: React.FC = () => {
   };
 
   const startNewGame = (diff: Difficulty) => {
+    if (diff === 'god') {
+      const confirmGod = window.confirm("⚠ GOD MODE\nNessun salvataggio permesso.\nSe esci o ricarichi la pagina, la partita sarà persa.\nProcedere?");
+      if (!confirmGod) return;
+    }
+
     const fullDeck = createDeck();
     const newState: GameState = {
       status: "playing", difficulty: diff, health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
@@ -92,7 +106,7 @@ const App: React.FC = () => {
       deck: fullDeck.slice(4), room: fullDeck.slice(0, 4), roomIndex: 1,
       selectedCardId: null, fugaDisponibile: true, fugaUsataUltimaStanza: false, enemiesDefeated: 0,
       startTime: Date.now(),
-      sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0 }
+      sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: GAME_RULES.INITIAL_HEALTH }
     };
     setGameState(newState);
     setView('playing');
@@ -102,6 +116,8 @@ const App: React.FC = () => {
     if (!activeProfile) return;
     const diff = finalState.difficulty;
     const profile = { ...activeProfile };
+    const heroClass = profile.heroClass;
+    
     [profile.stats[diff], profile.stats.general].forEach(s => {
       s.totalGames++;
       s.totalRoomsCleared += finalState.roomIndex;
@@ -110,13 +126,66 @@ const App: React.FC = () => {
       if (finalState.status === 'won') s.wins++; else s.losses++;
       if (finalState.roomIndex > s.bestRun.rooms) s.bestRun = { rooms: finalState.roomIndex, enemies: finalState.enemiesDefeated };
     });
+
     if (finalState.status === 'won') {
       if (diff === 'normal') profile.unlocks.hard = true;
       if (diff === 'hard') profile.unlocks.inferno = true;
-      if (diff === 'inferno') profile.unlocks.god = true;
+      
+      if (diff === 'inferno' && profile.stats.inferno.wins >= GAME_RULES.INFERNO_WINS_FOR_GOD) {
+        profile.unlocks.god = true;
+        if (!profile.achievements["ABYSS_LORD"]) {
+           profile.achievements["ABYSS_LORD"] = true;
+           addToast("Achievement: Signore dell'Abisso", "success");
+        }
+      }
+
+      // Eternal Tier 3 Logic
+      if (diff === 'god') {
+        const classEternal = profile.eternalUnlocks[heroClass] || [];
+        
+        // 3 God Wins = Standard Variant
+        if (profile.stats.god.wins >= GAME_RULES.GOD_WINS_FOR_ETERNAL) {
+          if (!classEternal.includes('standard')) {
+            classEternal.push('standard');
+            profile.achievements["ETERNAL_ASCENSION"] = true;
+            addToast(`Tier 3 Sbloccato per ${heroClass}!`, "success");
+          }
+        }
+
+        // Flawless Variant: Never < 50% HP
+        if (finalState.sessionStats.minHealthReached >= finalState.maxHealth / 2) {
+          if (!classEternal.includes('flawless')) {
+            classEternal.push('flawless');
+            addToast("Variante Eterno Sbloccata: Immacolato", "success");
+          }
+        }
+
+        // NoPotion Variant: 0 potions used
+        if (finalState.sessionStats.potionsUsed === 0) {
+          if (!classEternal.includes('no_potion')) {
+            classEternal.push('no_potion');
+            addToast("Variante Eterno Sbloccata: Ascetico", "success");
+          }
+        }
+
+        // NoRetreat Variant: 0 retreats used
+        if (finalState.sessionStats.retreatsUsed === 0) {
+          if (!classEternal.includes('no_retreat')) {
+            classEternal.push('no_retreat');
+            addToast("Variante Eterno Sbloccata: Incrollabile", "success");
+          }
+        }
+
+        profile.eternalUnlocks[heroClass] = classEternal;
+      }
+
       const achId = (diff.toUpperCase() + "_WIN");
-      if (ACHIEVEMENTS[achId]) profile.achievements[achId] = true;
+      if (ACHIEVEMENTS[achId] && !profile.achievements[achId]) {
+         profile.achievements[achId] = true;
+         addToast(`Achievement Sbloccato: ${ACHIEVEMENTS[achId].name}`, "success");
+      }
     }
+
     profile.lastGame = {
       status: finalState.status, rooms: finalState.roomIndex, enemies: finalState.enemiesDefeated,
       duration: Math.floor((Date.now() - finalState.startTime) / 1000), timestamp: Date.now()
@@ -125,39 +194,29 @@ const App: React.FC = () => {
     updateActiveProfile(profile);
   };
 
-  // Fixed the missing handleFlee function which caused the build error.
-  // It handles the "Flee" mechanic: cards go to the bottom of the deck, 
-  // and it might cost HP based on difficulty rules.
   const handleFlee = () => {
     if (!gameState.fugaDisponibile) return;
+    const cost = DifficultyRules.getRetreatCost(gameState.difficulty);
+    if (gameState.health <= cost) { addToast("Salute troppo bassa per fuggire!", "error"); return; }
 
     setIsFleeing(true);
-    // Visual delay to allow exit animations
     setTimeout(() => {
       setGameState(prev => {
-        const cost = DifficultyRules.getRetreatCost(prev.difficulty);
-        const nextHealth = prev.health - cost;
-
-        if (nextHealth <= 0) {
-          const lostState = { ...prev, health: 0, status: "lost" as const };
-          finalizeStats(lostState);
-          return lostState;
-        }
-
         const newDeck = [...prev.deck, ...prev.room];
         const nextRoom = newDeck.splice(0, 4);
-
         return {
           ...prev,
-          health: nextHealth,
+          health: prev.health - cost,
           room: nextRoom,
           deck: newDeck,
           fugaDisponibile: false,
           fugaUsataUltimaStanza: true,
           selectedCardId: null,
-          sessionStats: {
-            ...prev.sessionStats,
-            damageTaken: prev.sessionStats.damageTaken + cost
+          sessionStats: { 
+            ...prev.sessionStats, 
+            damageTaken: prev.sessionStats.damageTaken + cost,
+            retreatsUsed: prev.sessionStats.retreatsUsed + 1,
+            minHealthReached: Math.min(prev.sessionStats.minHealthReached, prev.health - cost)
           }
         };
       });
@@ -170,7 +229,7 @@ const App: React.FC = () => {
     if (!card) return;
 
     setGameState(prev => {
-      const type = card.suit === "Cuori" ? "potion" : card.suit === "Quadri" ? "weapon" : "monster";
+      const type = getCardType(card.suit);
       const weaponVal = prev.equippedWeapon?.value || 0;
       let next = { ...prev, room: prev.room.filter(c => c.id !== card.id), selectedCardId: null };
 
@@ -181,6 +240,8 @@ const App: React.FC = () => {
         next.enemiesDefeated++;
         next.sessionStats.enemiesDefeated++;
         next.sessionStats.damageTaken += damage;
+        next.sessionStats.minHealthReached = Math.min(next.sessionStats.minHealthReached, next.health);
+
         if (prev.weaponDurability !== null && prev.equippedWeapon) {
           next.weaponDurability = prev.weaponDurability - 1;
           if (next.weaponDurability <= 0) { next.equippedWeapon = null; next.weaponDurability = null; }
@@ -188,10 +249,12 @@ const App: React.FC = () => {
       } else if (type === "weapon") {
         next.equippedWeapon = card;
         next.weaponDurability = DifficultyRules.getMaxDurability(prev.difficulty);
+        next.sessionStats.weaponsEquipped++;
       } else if (type === "potion") {
         const heal = Math.floor(card.value * DifficultyRules.getHealMultiplier(prev.difficulty));
         next.health = Math.min(prev.maxHealth, prev.health + heal);
         next.sessionStats.healingDone += heal;
+        next.sessionStats.potionsUsed++;
       }
 
       if (next.health <= 0) { next.status = "lost"; finalizeStats(next); return next; }
@@ -205,7 +268,6 @@ const App: React.FC = () => {
         next.fugaDisponibile = !next.fugaUsataUltimaStanza;
         next.fugaUsataUltimaStanza = false;
 
-        // Autosave Logic every 10 rooms
         if (next.roomIndex % 10 === 0 && next.difficulty !== 'god' && activeProfile) {
            handleAutoSave(next);
         }
@@ -216,23 +278,23 @@ const App: React.FC = () => {
 
   const handleAutoSave = async (state: GameState) => {
     const save = await SaveManager.createSignedSave(state, activeProfile!.nickname);
-    const updatedSaves = { ...activeProfile!.saves };
-    updatedSaves[state.difficulty][0] = save; // Slot 0 is reserved for autosaves/most recent
-    updateActiveProfile({ saves: updatedSaves });
-    addToast("Autosave del Dungeon effettuato.", "success");
+    if (save) {
+      const updatedSaves = { ...activeProfile!.saves };
+      updatedSaves[state.difficulty][0] = save;
+      updateActiveProfile({ saves: updatedSaves });
+    }
   };
 
   const handleManualSave = async (slotIdx: number) => {
     const check = SaveManager.canSave(gameState);
-    if (!check.allowed) {
-      addToast(check.reason!, "error");
-      return;
-    }
+    if (!check.allowed) { addToast(check.reason!, "error"); return; }
     const save = await SaveManager.createSignedSave(gameState, activeProfile!.nickname);
-    const updatedSaves = { ...activeProfile!.saves };
-    updatedSaves[gameState.difficulty][slotIdx] = save;
-    updateActiveProfile({ saves: updatedSaves });
-    addToast(`Partita salvata nello Slot ${slotIdx + 1}`, "success");
+    if (save) {
+      const updatedSaves = { ...activeProfile!.saves };
+      updatedSaves[gameState.difficulty][slotIdx] = save;
+      updateActiveProfile({ saves: updatedSaves });
+      addToast(`Slot ${slotIdx + 1} salvato`, "success");
+    }
   };
 
   const handleLoadSave = async (save: SignedSave) => {
@@ -241,11 +303,27 @@ const App: React.FC = () => {
       setGameState(loadedState);
       setView('playing');
       setShowSave(false);
-      addToast("Salvataggio caricato con successo.", "success");
+      addToast("Salvataggio caricato.", "success");
     } else {
-      addToast("Errore Integrità: Salvataggio manomesso o non valido.", "error");
+      addToast("Integrità compromessa.", "error");
     }
   };
+
+  const handleSelectVariant = (variantId: string | null) => {
+    if (!activeProfile) return;
+    const heroClass = activeProfile.heroClass;
+    const selectedVariant = { ...activeProfile.selectedVariant };
+    selectedVariant[heroClass] = variantId;
+    updateActiveProfile({ selectedVariant });
+    setShowVariants(false);
+    addToast(variantId ? `Variante ${ETERNAL_VARIANTS[variantId].name} attivata` : "Variante base attivata", "success");
+  };
+
+  const currentEternalVariant = useMemo(() => {
+    if (!activeProfile) return null;
+    const variantId = activeProfile.selectedVariant[activeProfile.heroClass];
+    return variantId ? ETERNAL_VARIANTS[variantId] : null;
+  }, [activeProfile]);
 
   return (
     <div className="h-screen w-full flex flex-col relative overflow-hidden bg-slate-950 text-slate-50">
@@ -259,18 +337,33 @@ const App: React.FC = () => {
       {view === 'profile-selection' ? (
         <ProfileManagerUI profiles={profilesData.profiles} onSelect={(id) => { updateActiveProfile({id}); setView('main-menu'); }} onCreate={handleCreateProfile} onDelete={() => {}} onImport={() => {}} onExport={() => {}} />
       ) : view === 'difficulty-selection' ? (
-        <DifficultySelector unlocks={activeProfile?.unlocks!} onSelect={startNewGame} onCancel={() => setView('main-menu')} />
+        <DifficultySelector activeProfile={activeProfile!} onSelect={startNewGame} onCancel={() => setView('main-menu')} />
       ) : view === 'main-menu' ? (
         <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in fade-in duration-700">
            <div className="mb-8 flex flex-col items-center">
               <div className="relative group">
                 <img src={activeProfile?.avatar} className={`w-24 h-24 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl mb-4 transition-all duration-500`} />
+                {currentEternalVariant && (
+                  <div className="absolute -bottom-2 -right-2 bg-slate-950 border border-yellow-500/50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg animate-bounce" title={currentEternalVariant.name}>
+                    {currentEternalVariant.icon}
+                  </div>
+                )}
               </div>
-              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{activeProfile?.nickname}</h2>
-              <div className="mt-6 flex gap-3">
+              <div className="flex flex-col items-center">
+                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                   {activeProfile?.nickname}
+                   {currentEternalVariant && <span className={`text-[10px] font-black uppercase ${currentEternalVariant.color}`}>{currentEternalVariant.name}</span>}
+                 </h2>
+                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{activeProfile?.heroClass}</p>
+              </div>
+
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
                  <button onClick={() => setShowRules(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Manuale</button>
                  <button onClick={() => setShowStats(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Archivio</button>
                  <button onClick={() => setShowSave(true)} className="px-6 py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[10px] uppercase tracking-widest">Vault</button>
+                 {activeProfile && Object.values(activeProfile.eternalUnlocks).some(u => u.length > 0) && (
+                   <button onClick={() => setShowVariants(true)} className="px-6 py-3 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[10px] uppercase tracking-widest">Eternal Variants</button>
+                 )}
               </div>
            </div>
            <h1 className="text-8xl font-black text-red-600 uppercase tracking-tighter mb-10 drop-shadow-2xl">Scoundrel</h1>
@@ -282,16 +375,16 @@ const App: React.FC = () => {
       ) : (gameState.status === 'playing') ? (
         <div className="flex-1 flex flex-col w-full max-w-6xl mx-auto p-4 z-10">
           <div className="flex justify-between items-center mb-2">
-             <button onClick={() => setShowSave(true)} className="px-4 py-2 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5">Menu Salvataggio</button>
-             <button onClick={() => setView('main-menu')} className="px-4 py-2 bg-red-950/40 rounded-xl text-[8px] uppercase font-black text-red-400 hover:text-white border border-red-500/20">Abbandona</button>
+             <button disabled={gameState.difficulty === 'god'} onClick={() => setShowSave(true)} className="px-4 py-2 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5 disabled:opacity-20">Menu Salvataggio</button>
+             <button onClick={() => { if(window.confirm("Abbandonare?")) setView('main-menu'); }} className="px-4 py-2 bg-red-950/40 rounded-xl text-[8px] uppercase font-black text-red-400 hover:text-white border border-red-500/20">Abbandona</button>
           </div>
-          <HUD state={gameState} />
+          <HUD state={gameState} eternalVariant={currentEternalVariant} />
           <div className="flex-1 flex items-center justify-center min-h-0">
             <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(p => ({...p, selectedCardId: id === p.selectedCardId ? null : id}))} isExiting={isFleeing} />
           </div>
           <div className="mt-8 grid grid-cols-2 gap-6 hud-glass p-6 rounded-[32px]">
              <ContextualActionButton state={gameState} onAction={applyAction} />
-             <button disabled={!gameState.fugaDisponibile} onClick={() => handleFlee()} className={`py-5 font-black rounded-2xl uppercase tracking-widest border-b-4 transition-all ${gameState.fugaDisponibile ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-900 text-slate-700 border-slate-950 opacity-50'}`}>Fuggi</button>
+             <button disabled={!gameState.fugaDisponibile} onClick={handleFlee} className={`py-5 font-black rounded-2xl uppercase tracking-widest border-b-4 transition-all ${gameState.fugaDisponibile ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-900 text-slate-700 border-slate-950 opacity-50'}`}>Fuggi</button>
           </div>
         </div>
       ) : (
@@ -304,12 +397,15 @@ const App: React.FC = () => {
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {showStats && activeProfile && <StatsModal stats={{...activeProfile.stats.general, lastGame: activeProfile.lastGame}} onClose={() => setShowStats(false)} />}
       {showSave && activeProfile && (
-        <SaveModal 
-          activeProfile={activeProfile} 
-          gameState={gameState}
-          onClose={() => setShowSave(false)}
-          onSave={handleManualSave}
-          onLoad={handleLoadSave}
+        <SaveModal activeProfile={activeProfile} gameState={gameState} onClose={() => setShowSave(false)} onSave={handleManualSave} onLoad={handleLoadSave} />
+      )}
+      {showVariants && activeProfile && (
+        <VariantSelector 
+          heroClass={activeProfile.heroClass} 
+          unlockedVariants={activeProfile.eternalUnlocks[activeProfile.heroClass] || []} 
+          selectedVariantId={activeProfile.selectedVariant[activeProfile.heroClass]} 
+          onSelect={handleSelectVariant} 
+          onClose={() => setShowVariants(false)} 
         />
       )}
       {tutorialStep !== null && (
@@ -321,8 +417,12 @@ const App: React.FC = () => {
 
 const ContextualActionButton: React.FC<{ state: GameState, onAction: () => void }> = ({ state, onAction }) => {
   const card = state.room.find(c => c.id === state.selectedCardId);
+  const weaponVal = state.equippedWeapon?.value || 0;
   if (!card) return <button disabled className="py-5 bg-slate-900 text-slate-700 font-black rounded-2xl border-b-4 border-slate-950 uppercase tracking-widest opacity-50">Seleziona Bersaglio</button>;
-  return <button onClick={onAction} className="py-5 bg-red-700 border-red-950 text-white font-black rounded-2xl uppercase tracking-widest border-b-4 active:translate-y-1 transition-all">Conferma Azione</button>;
+  
+  const type = getCardType(card.suit);
+  const blocked = type === 'monster' && !DifficultyRules.canAttack(card.value, weaponVal, state.difficulty);
+  return <button disabled={blocked} onClick={onAction} className={`py-5 ${blocked ? 'bg-red-950/40 text-red-500' : 'bg-red-700 text-white'} border-red-950 font-black rounded-2xl uppercase tracking-widest border-b-4 active:translate-y-1 transition-all`}>{blocked ? 'Troppo Forte' : 'Conferma Azione'}</button>;
 };
 
 export default App;

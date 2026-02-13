@@ -68,8 +68,10 @@ export interface UserProfile {
   stats: Record<Difficulty | "general", ProfileStats>;
   currentGame: GameState | null;
   lastGame: RunSummary | null;
-  // Gestione slot: Max 2 per difficoltà
   saves: Record<Difficulty, (SignedSave | null)[]>;
+  // Eternal Tier 3 System
+  eternalUnlocks: Record<string, string[]>; // class -> [variantIds]
+  selectedVariant: Record<string, string | null>; // class -> variantId
 }
 
 export interface SessionStats {
@@ -79,6 +81,8 @@ export interface SessionStats {
   healingDone: number;
   weaponsEquipped: number;
   potionsUsed: number;
+  retreatsUsed: number;
+  minHealthReached: number;
 }
 
 export interface GameState {

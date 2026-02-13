@@ -1,9 +1,9 @@
 
 import React from 'react';
 import { GameState } from '../types';
-import { getSuitIcon, DIFFICULTY_CONFIG } from '../constants';
+import { getSuitIcon, DIFFICULTY_CONFIG, EternalVariant } from '../constants';
 
-const HUD: React.FC<{ state: GameState }> = ({ state }) => {
+const HUD: React.FC<{ state: GameState, eternalVariant?: EternalVariant | null }> = ({ state, eternalVariant }) => {
   const diff = DIFFICULTY_CONFIG[state.difficulty];
   const healthPercentage = (state.health / state.maxHealth) * 100;
   const isGod = state.difficulty === 'god';
@@ -13,7 +13,8 @@ const HUD: React.FC<{ state: GameState }> = ({ state }) => {
       
       <div className="flex flex-col gap-1 min-w-[140px]">
          <span className="text-[9px] uppercase text-slate-500 font-black tracking-widest">Difficoltà</span>
-         <div className={`px-3 py-1 rounded-full text-center text-xs font-black uppercase ${isGod ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-slate-800 text-slate-300'}`}>
+         <div className={`px-3 py-1 rounded-full text-center text-xs font-black uppercase flex items-center justify-center gap-2 ${isGod ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' : 'bg-slate-800 text-slate-300'}`}>
+            {eternalVariant && <span>{eternalVariant.icon}</span>}
             {diff.label}
          </div>
       </div>
