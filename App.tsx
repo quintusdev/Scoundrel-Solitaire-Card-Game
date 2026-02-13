@@ -443,7 +443,7 @@ const App: React.FC = () => {
   }, [activeProfile]);
 
   return (
-    <div className={`h-screen w-full flex flex-col relative overflow-hidden bg-slate-950 text-slate-50 ${gameState.difficulty === 'question' && activeProfile?.worldState.activeShifts.some(s => s.effectId === 'cosmetic_blue') ? 'cosmetic-blue' : ''}`}>
+    <div className={`min-h-dvh w-full flex flex-col relative bg-slate-950 text-slate-50 ${gameState.difficulty === 'question' && activeProfile?.worldState.activeShifts.some(s => s.effectId === 'cosmetic_blue') ? 'cosmetic-blue' : ''}`}>
       <div className="cinematic-vignette" />
       <div className={`global-game-bg`} style={{ backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), url('${getBackgroundByRoom(gameState.roomIndex)}')` }} />
       
@@ -512,7 +512,7 @@ const App: React.FC = () => {
           <div className="flex-1 flex items-center justify-center min-h-0">
             <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(p => ({...p, selectedCardId: id === p.selectedCardId ? null : id}))} isExiting={isFleeing} difficulty={gameState.difficulty} activeShifts={activeProfile?.worldState.activeShifts || []} />
           </div>
-          <div className="mt-8 grid grid-cols-2 gap-6 hud-glass p-6 rounded-[32px]">
+          <div className="grid grid-cols-2 gap-6 hud-glass p-6 rounded-[32px]">
              <ContextualActionButton state={gameState} onAction={applyAction} />
              <button disabled={!gameState.fugaDisponibile} onClick={handleFlee} className={`py-5 font-black rounded-2xl uppercase tracking-widest border-b-4 transition-all ${gameState.fugaDisponibile ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-900 text-slate-700 border-slate-950 opacity-50'}`}>Fuggi</button>
           </div>
