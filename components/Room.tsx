@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Card as CardType } from '../types';
+import { Card as CardType, Difficulty } from '../types';
 import Card from './Card';
 
 interface RoomProps {
@@ -9,9 +9,11 @@ interface RoomProps {
   onSelect: (id: string) => void;
   isExiting?: boolean;
   dyingCardId?: string | null;
+  difficulty?: Difficulty;
 }
 
-const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false, dyingCardId = null }) => {
+const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false, dyingCardId = null, difficulty }) => {
+  const isQuestion = difficulty === 'question';
   return (
     <div id="room-container" className="flex flex-row items-center justify-center gap-2 sm:gap-4 md:gap-6 w-full h-full max-h-[55vh] px-2 py-2 overflow-visible">
       {cards.map((card, index) => (
@@ -23,6 +25,7 @@ const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = fa
             animationDelay={`${index * 0.05}s`}
             isExiting={isExiting}
             isDying={dyingCardId === card.id}
+            isQuestionMode={isQuestion}
           />
         </div>
       ))}

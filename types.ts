@@ -2,7 +2,7 @@
 export type Suit = "Cuori" | "Quadri" | "Fiori" | "Picche";
 export type ActionType = "PRIMARY_ACTION" | "FUGA";
 export type GameStatus = "start" | "playing" | "won" | "lost";
-export type Difficulty = "normal" | "hard" | "inferno" | "god";
+export type Difficulty = "normal" | "hard" | "inferno" | "god" | "question";
 
 export interface Card {
   id: string;      
@@ -54,6 +54,25 @@ export interface SignedSave {
   signature: string; // HMAC SHA-256
 }
 
+export interface ChronicleEntry {
+  id: string;
+  heroName: string;
+  heroClass: string;
+  title: string;
+  timestamp: number;
+  stats: SessionStats;
+  rooms: number;
+  difficulty: Difficulty;
+  variants: string[]; // e.g., ["flawless", "no_potion"]
+  status: "won" | "lost";
+  p42?: boolean;
+}
+
+export interface SignedChronicle {
+  data: string;
+  signature: string;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -71,10 +90,12 @@ export interface UserProfile {
   saves: Record<Difficulty, (SignedSave | null)[]>;
   eternalUnlocks: Record<string, string[]>; 
   selectedVariant: Record<string, string | null>;
-  // Evolutive Chest System
   progression: {
     tier: number; // 0, 1, 2, 3
+    paradoxUnlocked: boolean;
+    paradoxSeen: boolean;
   };
+  eternalHall: ChronicleEntry[];
 }
 
 export interface SessionStats {

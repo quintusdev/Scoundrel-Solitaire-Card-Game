@@ -54,6 +54,40 @@ export const CHEST_VISUALS: Record<number, ChestConfig> = {
   }
 };
 
+export interface BootConfig {
+  overlayClass: string;
+  effectClass: string;
+  title: string;
+  sub: string;
+}
+
+export const BOOT_CONFIG: Record<number, BootConfig> = {
+  0: {
+    overlayClass: "bg-slate-950",
+    effectClass: "animate-fade-in",
+    title: "SCOUNDREL",
+    sub: "PROTOC_INIT_V0"
+  },
+  1: {
+    overlayClass: "bg-slate-950",
+    effectClass: "boot-iron",
+    title: "IRON SCOUNDREL",
+    sub: "VAULT_SECURED"
+  },
+  2: {
+    overlayClass: "bg-slate-950",
+    effectClass: "boot-gold",
+    title: "GOLDEN LEGACY",
+    sub: "INFERNO_RESISTANT"
+  },
+  3: {
+    overlayClass: "bg-slate-950",
+    effectClass: "boot-arcane",
+    title: "ETERNAL ASCENSION",
+    sub: "GOD_TIER_STABILIZED"
+  }
+};
+
 export interface EternalVariant {
   id: string;
   name: string;
@@ -95,7 +129,7 @@ export const ETERNAL_VARIANTS: Record<string, EternalVariant> = {
 
 export const DifficultyRules = {
   canAttack: (monsterVal: number, weaponVal: number, diff: Difficulty): boolean => {
-    if (diff === 'inferno' || diff === 'god') {
+    if (diff === 'inferno' || diff === 'god' || diff === 'question') {
       return weaponVal >= monsterVal;
     }
     return true;
@@ -105,26 +139,27 @@ export const DifficultyRules = {
     if (diff === 'normal') {
       return Math.max(0, monsterVal - weaponVal);
     }
-    if (diff === 'hard' || diff === 'inferno' || diff === 'god') {
+    if (diff === 'hard' || diff === 'inferno' || diff === 'god' || diff === 'question') {
       return weaponVal >= monsterVal ? 0 : monsterVal;
     }
     return monsterVal;
   },
 
   getHealMultiplier: (diff: Difficulty): number => {
-    const multipliers = { normal: 1, hard: 1, inferno: 0.5, god: 0.25 };
+    const multipliers = { normal: 1, hard: 1, inferno: 0.5, god: 0.25, question: 0.5 };
     return multipliers[diff];
   },
 
   getMaxDurability: (diff: Difficulty): number | null => {
     if (diff === 'inferno') return 3;
     if (diff === 'god') return 2;
+    if (diff === 'question') return 999; // Represents stability for the probabilistic logic
     return null;
   },
 
   getRetreatCost: (diff: Difficulty): number => {
     if (diff === 'god') return 2;
-    if (diff === 'inferno') return 1;
+    if (diff === 'inferno' || diff === 'question') return 1;
     return 0;
   }
 };
@@ -158,6 +193,12 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, {
     color: "text-yellow-400", 
     bgClass: "god-card-bg border-yellow-500/50",
     description: "Ironman Run. Nessun salvataggio. Arma 2 usi. Cure -75%."
+  },
+  question: {
+    label: "The Question",
+    color: "text-cyan-400",
+    bgClass: "bg-slate-950 border-cyan-500/40 stars-container",
+    description: "Realtà instabile. Valori fluttuanti. Durabilità incerta."
   }
 };
 

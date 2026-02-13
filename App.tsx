@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave } from './types';
+import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave, ChronicleEntry } from './types';
 import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules, getCardType, ETERNAL_VARIANTS } from './constants';
 import { SaveManager } from './SaveManager';
+import { ChronicleManager } from './ChronicleManager';
 import HUD from './components/HUD';
 import Room from './components/Room';
 import RulesModal from './components/RulesModal';
@@ -14,6 +15,8 @@ import DifficultySelector from './components/DifficultySelector';
 import TutorialOverlay from './components/TutorialOverlay';
 import VariantSelector from './components/VariantSelector';
 import EvolutiveChest from './components/EvolutiveChest';
+import BootSequence from './components/BootSequence';
+import HallOfEternal from './components/HallOfEternal';
 
 const EMPTY_STATS: ProfileStats = { 
   wins: 0, losses: 0, totalGames: 0, bestScore: 0,
@@ -27,9 +30,11 @@ const App: React.FC = () => {
   const [showStats, setShowStats] = useState(false);
   const [showSave, setShowSave] = useState(false);
   const [showVariants, setShowVariants] = useState(false);
+  const [showHall, setShowHall] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [toasts, setToasts] = useState<{id: number, message: string, kind: string}[]>([]);
   const [profilesData, setProfilesData] = useState<ProfilesData>({ activeProfileId: null, profiles: {} });
+  const [isBooting, setIsBooting] = useState(false);
 
   const [isFleeing, setIsFleeing] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
@@ -56,7 +61,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const dataToSave = { ...profilesData };
-    if (gameState.difficulty === 'god' && activeProfile) {
+    if ((gameState.difficulty === 'god' || gameState.difficulty === 'question') && activeProfile) {
        const p = dataToSave.profiles[activeProfile.id];
        if (p) p.currentGame = null;
     }
@@ -81,6 +86,12 @@ const App: React.FC = () => {
     return 0;
   };
 
+  const handleSelectProfile = (id: string) => {
+    updateActiveProfile({ id });
+    setIsBooting(true);
+    setView('main-menu');
+  };
+
   const handleCreateProfile = (name: string, nickname: string, heroClass: string, avatar: string) => {
     const id = `profile_${Date.now()}`;
     const newProfile: UserProfile = {
@@ -88,23 +99,26 @@ const App: React.FC = () => {
       version: GAME_RULES.VERSION, lastActivity: "Adesso",
       unlocks: { hard: false, inferno: false, god: false },
       achievements: {},
-      rankings: { normal: null, hard: null, inferno: null, god: null },
-      stats: { normal: {...EMPTY_STATS}, hard: {...EMPTY_STATS}, inferno: {...EMPTY_STATS}, god: {...EMPTY_STATS}, general: {...EMPTY_STATS} },
+      rankings: { normal: null, hard: null, inferno: null, god: null, question: null },
+      stats: { normal: {...EMPTY_STATS}, hard: {...EMPTY_STATS}, inferno: {...EMPTY_STATS}, god: {...EMPTY_STATS}, question: {...EMPTY_STATS}, general: {...EMPTY_STATS} },
       currentGame: null, lastGame: null,
-      saves: { normal: [null, null], hard: [null, null], inferno: [null, null], god: [null, null] },
+      saves: { normal: [null, null], hard: [null, null], inferno: [null, null], god: [null, null], question: [null, null] },
       eternalUnlocks: { "Guerriero": [], "Ladro": [], "Mago": [], "Paladino": [] },
       selectedVariant: { "Guerriero": null, "Ladro": null, "Mago": null, "Paladino": null },
-      progression: { tier: 0 }
+      progression: { tier: 0, paradoxUnlocked: false, paradoxSeen: false },
+      eternalHall: []
     };
     setProfilesData(prev => ({ ...prev, profiles: { ...prev.profiles, [id]: newProfile }, activeProfileId: id }));
+    setIsBooting(true);
     setView('main-menu');
     setTutorialStep(0);
   };
 
   const startNewGame = (diff: Difficulty) => {
-    if (diff === 'god') {
-      const confirmGod = window.confirm("⚠ GOD MODE\nNessun salvataggio permesso.\nSe esci o ricarichi la pagina, la partita sarà persa.\nProcedere?");
-      if (!confirmGod) return;
+    if (diff === 'god' || diff === 'question') {
+      const msg = diff === 'god' ? "⚠ GOD MODE\nNessun salvataggio permesso.\nProcedere?" : "⚠ THE QUESTION\nLa realtà sta collassando.\nNessun salvataggio o record permesso.\nProcedere?";
+      const confirmRun = window.confirm(msg);
+      if (!confirmRun) return;
     }
 
     const fullDeck = createDeck();
@@ -124,6 +138,13 @@ const App: React.FC = () => {
   const finalizeStats = (finalState: GameState) => {
     if (!activeProfile) return;
     const diff = finalState.difficulty;
+    
+    // "The Question" mode does not impact official stats or Hall
+    if (diff === 'question') {
+       setView('main-menu');
+       return;
+    }
+
     const profile = { ...activeProfile };
     const heroClass = profile.heroClass;
     
@@ -149,6 +170,10 @@ const App: React.FC = () => {
       }
 
       if (diff === 'god') {
+        const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
+        if (!profile.eternalHall) profile.eternalHall = [];
+        profile.eternalHall.unshift(chronicle);
+
         const classEternal = profile.eternalUnlocks[heroClass] || [];
         if (profile.stats.god.wins >= GAME_RULES.GOD_WINS_FOR_ETERNAL) {
           if (!classEternal.includes('standard')) {
@@ -173,6 +198,19 @@ const App: React.FC = () => {
       if (ACHIEVEMENTS[achId] && !profile.achievements[achId]) {
          profile.achievements[achId] = true;
       }
+    } else {
+      if (ChronicleManager.isSignificantFall(finalState)) {
+        const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
+        if (!profile.eternalHall) profile.eternalHall = [];
+        profile.eternalHall.unshift(chronicle);
+        addToast("Cronaca di una Caduta Memorabile registrata.", "warning");
+      }
+    }
+
+    // Paradox 42 Trigger
+    if (!profile.progression.paradoxUnlocked && profile.eternalHall.length === 42 && profile.eternalHall.every(e => e.difficulty === 'god' && e.status === 'won')) {
+      profile.progression.paradoxUnlocked = true;
+      addToast("Il paradosso si è manifestato...", "info");
     }
 
     profile.progression.tier = calculateProgressionTier(profile);
@@ -220,19 +258,32 @@ const App: React.FC = () => {
 
     setGameState(prev => {
       const type = getCardType(card.suit);
+      const isQuestion = prev.difficulty === 'question';
+      
+      // Unstable values for "The Question" mode
+      const valueOffset = isQuestion ? (Math.floor(Math.random() * 3) - 1) : 0;
+      const effectiveCardValue = Math.max(1, card.value + valueOffset);
+      
       const weaponVal = prev.equippedWeapon?.value || 0;
       let next = { ...prev, room: prev.room.filter(c => c.id !== card.id), selectedCardId: null };
 
       if (type === "monster") {
-        if (!DifficultyRules.canAttack(card.value, weaponVal, prev.difficulty)) return prev;
-        const damage = DifficultyRules.calculateDamage(card.value, weaponVal, prev.difficulty);
+        if (!DifficultyRules.canAttack(effectiveCardValue, weaponVal, prev.difficulty)) return prev;
+        const damage = DifficultyRules.calculateDamage(effectiveCardValue, weaponVal, prev.difficulty);
         next.health -= damage;
         next.enemiesDefeated++;
         next.sessionStats.enemiesDefeated++;
         next.sessionStats.damageTaken += damage;
         next.sessionStats.minHealthReached = Math.min(next.sessionStats.minHealthReached, next.health);
 
-        if (prev.weaponDurability !== null && prev.equippedWeapon) {
+        if (isQuestion && next.equippedWeapon) {
+           // Probabilistic durability for "The Question"
+           if (Math.random() < 0.33) {
+             next.equippedWeapon = null;
+             next.weaponDurability = null;
+             addToast("L'arma si è dissolta nel paradosso.", "warning");
+           }
+        } else if (prev.weaponDurability !== null && prev.equippedWeapon) {
           next.weaponDurability = prev.weaponDurability - 1;
           if (next.weaponDurability <= 0) { next.equippedWeapon = null; next.weaponDurability = null; }
         }
@@ -241,7 +292,7 @@ const App: React.FC = () => {
         next.weaponDurability = DifficultyRules.getMaxDurability(prev.difficulty);
         next.sessionStats.weaponsEquipped++;
       } else if (type === "potion") {
-        const heal = Math.floor(card.value * DifficultyRules.getHealMultiplier(prev.difficulty));
+        const heal = Math.floor(effectiveCardValue * DifficultyRules.getHealMultiplier(prev.difficulty));
         next.health = Math.min(prev.maxHealth, prev.health + heal);
         next.sessionStats.healingDone += heal;
         next.sessionStats.potionsUsed++;
@@ -258,7 +309,7 @@ const App: React.FC = () => {
         next.fugaDisponibile = !next.fugaUsataUltimaStanza;
         next.fugaUsataUltimaStanza = false;
 
-        if (next.roomIndex % 10 === 0 && next.difficulty !== 'god' && activeProfile) {
+        if (next.roomIndex % 10 === 0 && next.difficulty !== 'god' && next.difficulty !== 'question' && activeProfile) {
            handleAutoSave(next);
         }
       }
@@ -308,6 +359,27 @@ const App: React.FC = () => {
     setShowVariants(false);
   };
 
+  const handleImportChronicle = async (code: string) => {
+    const entry = await ChronicleManager.verifyChronicle(code);
+    if (entry && activeProfile) {
+      const newHall = [...activeProfile.eternalHall];
+      if (newHall.some(e => e.id === entry.id)) {
+        addToast("Questa cronaca è già presente nell'archivio.", "info");
+      } else {
+        newHall.unshift(entry);
+        updateActiveProfile({ eternalHall: newHall });
+        addToast("Cronaca importata con successo!", "success");
+      }
+    } else {
+      addToast("Codice Cronaca non valido o corrotto.", "error");
+    }
+  };
+
+  const handleMarkParadoxSeen = () => {
+    if (!activeProfile) return;
+    updateActiveProfile({ progression: { ...activeProfile.progression, paradoxSeen: true } });
+  };
+
   const currentEternalVariant = useMemo(() => {
     if (!activeProfile) return null;
     const variantId = activeProfile.selectedVariant[activeProfile.heroClass];
@@ -323,12 +395,16 @@ const App: React.FC = () => {
         {toasts.map(t => <Toast key={t.id} message={t.message} kind={t.kind} />)}
       </div>
 
+      {isBooting && activeProfile && (
+        <BootSequence tier={activeProfile.progression.tier} onComplete={() => setIsBooting(false)} />
+      )}
+
       {view === 'profile-selection' ? (
-        <ProfileManagerUI profiles={profilesData.profiles} onSelect={(id) => { updateActiveProfile({id}); setView('main-menu'); }} onCreate={handleCreateProfile} onDelete={() => {}} onImport={() => {}} onExport={() => {}} />
+        <ProfileManagerUI profiles={profilesData.profiles} onSelect={handleSelectProfile} onCreate={handleCreateProfile} onDelete={() => {}} onImport={() => {}} onExport={() => {}} />
       ) : view === 'difficulty-selection' ? (
         <DifficultySelector activeProfile={activeProfile!} onSelect={startNewGame} onCancel={() => setView('main-menu')} />
       ) : view === 'main-menu' ? (
-        <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in fade-in duration-700">
+        <div className={`flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in fade-in duration-700 ${isBooting ? 'invisible' : ''}`}>
            <div className="mb-8 flex flex-col items-center">
               <div className="relative group">
                 <img src={activeProfile?.avatar} className={`w-24 h-24 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl mb-4 transition-all duration-500`} />
@@ -347,9 +423,10 @@ const App: React.FC = () => {
               </div>
 
               <div className="mt-8 flex flex-col items-center gap-6">
-                 <div className="flex gap-4">
+                 <div className="flex flex-wrap justify-center gap-4">
                     <button onClick={() => setShowRules(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Manuale</button>
                     <button onClick={() => setShowSave(true)} className="px-6 py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[10px] uppercase tracking-widest">Vault</button>
+                    <button onClick={() => setShowHall(true)} className="px-6 py-3 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-500/20 transition-all text-[10px] uppercase tracking-widest">Hall of Eternal</button>
                     {activeProfile && Object.values(activeProfile.eternalUnlocks).some(u => u.length > 0) && (
                       <button onClick={() => setShowVariants(true)} className="px-6 py-3 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[10px] uppercase tracking-widest">Eternal Variants</button>
                     )}
@@ -366,13 +443,13 @@ const App: React.FC = () => {
            
            <div className="flex flex-col gap-4 w-full max-w-xs">
               <button onClick={() => setView('difficulty-selection')} className="py-5 bg-red-600 text-white font-black rounded-2xl border-b-8 border-red-950 active:translate-y-2 active:border-b-0 transition-all text-xl uppercase italic">Inizia Spedizione</button>
-              <button onClick={() => setView('profile-selection')} className="py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">Cambia Profilo</button>
+              <button onClick={() => { updateActiveProfile({ id: null }); setView('profile-selection'); }} className="py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">Cambia Profilo</button>
            </div>
         </div>
       ) : (gameState.status === 'playing') ? (
         <div className="flex-1 flex flex-col w-full max-w-6xl mx-auto p-4 z-10">
           <div className="flex justify-between items-center mb-2">
-             <button disabled={gameState.difficulty === 'god'} onClick={() => setShowSave(true)} className="px-4 py-2 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5 disabled:opacity-20">Menu Salvataggio</button>
+             <button disabled={gameState.difficulty === 'god' || gameState.difficulty === 'question'} onClick={() => setShowSave(true)} className="px-4 py-2 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5 disabled:opacity-20">Menu Salvataggio</button>
              <button onClick={() => { if(window.confirm("Abbandonare?")) setView('main-menu'); }} className="px-4 py-2 bg-red-950/40 rounded-xl text-[8px] uppercase font-black text-red-400 hover:text-white border border-red-500/20">Abbandona</button>
           </div>
           <HUD state={gameState} eternalVariant={currentEternalVariant} />
@@ -398,6 +475,16 @@ const App: React.FC = () => {
       )}
       {showVariants && activeProfile && (
         <VariantSelector heroClass={activeProfile.heroClass} unlockedVariants={activeProfile.eternalUnlocks[activeProfile.heroClass] || []} selectedVariantId={activeProfile.selectedVariant[activeProfile.heroClass]} onSelect={handleSelectVariant} onClose={() => setShowVariants(false)} />
+      )}
+      {showHall && activeProfile && (
+        <HallOfEternal 
+          chronicles={activeProfile.eternalHall || []} 
+          isParadox={activeProfile.progression.paradoxUnlocked}
+          paradoxSeen={activeProfile.progression.paradoxSeen}
+          onMarkSeen={handleMarkParadoxSeen}
+          onClose={() => setShowHall(false)} 
+          onImport={handleImportChronicle}
+        />
       )}
       {tutorialStep !== null && (
         <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s! + 1)} onComplete={() => setTutorialStep(null)} />

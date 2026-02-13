@@ -10,9 +10,10 @@ interface CardProps {
   animationDelay?: string;
   isExiting?: boolean; 
   isDying?: boolean;   
+  isQuestionMode?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, isExiting, isDying }) => {
+const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, isExiting, isDying, isQuestionMode }) => {
   const isRed = isRedSuit(card.suit);
   const type = getCardType(card.suit);
   
@@ -37,15 +38,16 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, 
         ${isSelected ? 'pulse-glow scale-105 -translate-y-4 z-20' : 'border-slate-800 bg-slate-900/80 hover:border-slate-600'}
         ${rarityClass}
         flex flex-col items-center justify-between p-4 select-none overflow-hidden
+        ${isQuestionMode ? 'blur-[0.5px]' : ''}
       `}
     >
       <div className={`w-full flex justify-between font-black text-xl z-10 ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
-        <span>{card.rank}</span>
+        <span>{isQuestionMode ? '?' : card.rank}</span>
         <span>{suitIcon}</span>
       </div>
       
       <div 
-        className={`card-art transition-transform duration-500 w-16 h-16 md:w-20 md:h-20 ${isSelected ? 'scale-110 brightness-125' : ''}`} 
+        className={`card-art transition-transform duration-500 w-16 h-16 md:w-20 md:h-20 ${isSelected ? 'scale-110 brightness-125' : ''} ${isQuestionMode ? 'animate-pulse' : ''}`} 
         dangerouslySetInnerHTML={{ __html: pixelArt }} 
       />
 
@@ -53,13 +55,13 @@ const Card: React.FC<CardProps> = ({ card, isSelected, onClick, animationDelay, 
         <span className="text-[10px] uppercase tracking-widest text-slate-500 font-black mb-1">
           {type === "potion" ? "Cura" : type === "weapon" ? "Arma" : "Mostro"}
         </span>
-        <span className={`text-4xl md:text-5xl font-black drop-shadow-lg ${isSelected ? 'text-yellow-400' : 'text-white'}`}>
-          {card.value}
+        <span className={`text-4xl md:text-5xl font-black drop-shadow-lg ${isSelected ? 'text-yellow-400' : 'text-white'} ${isQuestionMode ? 'opacity-50' : ''}`}>
+          {isQuestionMode ? '~' : ''}{card.value}
         </span>
       </div>
 
       <div className={`w-full flex justify-between font-black text-xl rotate-180 z-10 ${isRed ? 'text-red-500' : 'text-slate-400'}`}>
-        <span>{card.rank}</span>
+        <span>{isQuestionMode ? '?' : card.rank}</span>
         <span>{suitIcon}</span>
       </div>
 

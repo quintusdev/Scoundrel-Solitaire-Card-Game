@@ -19,8 +19,8 @@ export class SaveManager {
   }
 
   public static async createSignedSave(state: GameState, nickname: string): Promise<SignedSave | null> {
-    // GOD Mode block
-    if (state.difficulty === 'god') return null;
+    // GOD Mode and Question mode block
+    if (state.difficulty === 'god' || state.difficulty === 'question') return null;
 
     const stateString = JSON.stringify(state);
     const base64Data = btoa(unescape(encodeURIComponent(stateString)));
@@ -66,6 +66,7 @@ export class SaveManager {
 
   public static canSave(state: GameState): { allowed: boolean; reason?: string } {
     if (state.difficulty === 'god') return { allowed: false, reason: "Nessun salvataggio permesso in GOD MODE." };
+    if (state.difficulty === 'question') return { allowed: false, reason: "La realtà è troppo instabile per essere salvata." };
     if (state.selectedCardId !== null) return { allowed: false, reason: "Non puoi salvare durante un combattimento." };
     if (state.status !== 'playing') return { allowed: false, reason: "Partita non attiva." };
     return { allowed: true };
