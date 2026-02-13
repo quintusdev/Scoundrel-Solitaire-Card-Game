@@ -1,11 +1,62 @@
 
-import { Card, Suit } from './types';
+import { Card, Suit, Difficulty, Achievement } from './types';
 
 export const GAME_RULES = {
   INITIAL_HEALTH: 20,
   CARDS_PER_ROOM: 4,
-  STATS_KEY: "scoundrel_react_stats_v1"
+  PROFILES_KEY: "scoundrel_meta_v1",
+  VERSION: "1.1",
+  INFERNO_DURABILITY: 3
 };
+
+export const DIFFICULTY_CONFIG: Record<Difficulty, { 
+  label: string, 
+  color: string, 
+  description: string,
+  healMultiplier: number
+}> = {
+  normal: { 
+    label: "Normale", 
+    color: "text-blue-400", 
+    description: "Danno = Max(0, Mostro - Arma).",
+    healMultiplier: 1.0
+  },
+  hard: { 
+    label: "Hardcore", 
+    color: "text-orange-500", 
+    description: "Se Mostro > Arma: subisci danno PIENO dal mostro.",
+    healMultiplier: 1.0
+  },
+  inferno: { 
+    label: "Inferno", 
+    color: "text-red-500 animate-pulse", 
+    description: "Impossibile attaccare mostri più forti dell'arma. Durabilità arma limitata (3 usi). Cure -50%.",
+    healMultiplier: 0.5
+  }
+};
+
+export const ACHIEVEMENTS: Record<string, { name: string, desc: string, icon: string }> = {
+  "FIRST_WIN": { name: "Battesimo del Sangue", desc: "Vinci la tua prima partita.", icon: "🩸" },
+  "HARD_WIN": { name: "Veterano", desc: "Vinci in modalità Hard.", icon: "⚔️" },
+  "INFERNO_WIN": { name: "Eroe Infernale", desc: "Vinci in modalità Inferno.", icon: "🔥" },
+  "NO_WEAPON": { name: "Pugni d'Acciaio", desc: "Vinci senza mai equipaggiare un'arma.", icon: "👊" },
+  "BERSERKER": { name: "Furia Cieca", desc: "Vinci con solo 1 HP rimanente.", icon: "💢" }
+};
+
+export const HERO_CLASSES = ["Guerriero", "Ladro", "Mago", "Paladino"];
+
+export const AVATARS = [
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Aneka",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Buddy",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Casper",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Milo",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Sassy",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Toby",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Luna",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Oscar",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Pepper"
+];
 
 export const DUNGEON_BACKGROUNDS = [
   "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2094&auto=format&fit=crop",
@@ -36,19 +87,19 @@ export const getCardType = (suit: Suit) => {
   return "monster";
 };
 
-// Refactoring: helper esterni per evitare ri-creazione in loop
 const seededRandom = (seed: number, s: number) => {
   const x = Math.sin(seed + s) * 10000;
   return x - Math.floor(x);
 };
 
-export const generatePixelArtSVG = (type: string, value: number): string => {
+export const generatePixelArtSVG = (type: string, value: number, isBroken: boolean = false): string => {
   const size = 16; 
   const pixels: { x: number, y: number, color: string }[] = [];
   const stringSeed = type.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const seed = (stringSeed + value) * 1337;
 
   const drawSymmetric = (x: number, y: number, color: string) => {
+    if (isBroken && seededRandom(seed, x * y) > 0.7) return; // Effetto crepa
     pixels.push({ x, y, color });
     if (x !== 7 && x !== 8) pixels.push({ x: size - 1 - x, y, color });
   };
@@ -61,32 +112,17 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
       let width = y < 6 ? 2 : y > 10 ? 3 : 5;
       for (let x = 8 - width; x <= 7; x++) {
         let color = (x + y) % 3 === 0 ? darkColor : mainColor;
-        if (seededRandom(seed, x * y) > 0.92) color = "#ffffff22"; 
         drawSymmetric(x, y, color);
       }
     }
-    drawSymmetric(5, 7, "#ffffff"); 
-    if (value > 6) drawSymmetric(4, 7, "#ffffff");
   } else if (type === "weapon") {
-    const bladeHeight = value;
-    const startY = Math.max(1, 12 - bladeHeight);
-    for (let y = startY; y <= 11; y++) {
-      pixels.push({ x: 7, y, color: "#cbd5e1" });
-      pixels.push({ x: 8, y, color: "#64748b" });
-    }
-    const guardWidth = value > 10 ? 3 : 2;
-    const hiltColor = "#d97706";
-    for (let x = 8 - guardWidth; x <= 7 + guardWidth; x++) pixels.push({ x, y: 12, color: hiltColor });
-    pixels.push({ x: 7, y: 14, color: value > 12 ? "#3b82f6" : "#b91c1c" }); 
+    const bladeColor = isBroken ? "#475569" : "#cbd5e1";
+    for (let y = 2; y <= 11; y++) pixels.push({ x: 7, y, color: bladeColor });
+    for (let x = 6; x <= 9; x++) pixels.push({ x, y: 12, color: "#d97706" });
   } else if (type === "potion") {
     const liqColor = value > 10 ? "#ec4899" : "#10b981";
-    const fillHeight = Math.floor((value / 14) * 8) + 1;
-    for (let y = 6; y <= 14; y++) {
-      const w = y < 8 ? 2 : y > 12 ? 3 : 4;
-      for (let x = 8 - w; x <= 7 + w; x++) {
-        const isLiquid = y > (14 - fillHeight);
-        pixels.push({ x, y, color: isLiquid ? liqColor : "#1e293b" });
-      }
+    for (let y = 8; y <= 14; y++) {
+       for (let x = 6; x <= 9; x++) pixels.push({ x, y, color: liqColor });
     }
   }
 

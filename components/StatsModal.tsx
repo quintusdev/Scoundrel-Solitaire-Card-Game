@@ -1,5 +1,12 @@
+
 import React from 'react';
-import { GameStats } from '../types';
+// Corrected import: GameStats was not exported from types.ts. Using ProfileStats and RunSummary instead.
+import { ProfileStats, RunSummary } from '../types';
+
+// Defined GameStats interface locally to combine overall profile stats with the last run summary.
+interface GameStats extends ProfileStats {
+  lastGame: RunSummary | null;
+}
 
 interface StatsModalProps {
   stats: GameStats;

@@ -192,6 +192,7 @@ const RulesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <div className="space-y-4 h-[400px] overflow-y-auto pr-2 animate-in fade-in duration-300 scrollbar-hide">
             {[
               { q: "Cosa succede se la quarta carta è una pozione?", a: "Resta sul tavolo come Carry-over. La prossima stanza inizierà con quella pozione più 3 carte nuove." },
+              { q: "Come viene calcolato esattamente il danno quando uso un'arma contro un mostro?", a: "La formula è: [Valore Mostro] - [Valore Arma] = [Salute Persa]. Se il valore dell'arma è uguale o superiore a quello del mostro, il danno è zero. Esempio: Mostro 12 contro Spada 8 -> Subisci 4 danni (12 - 8 = 4)." },
               { q: "Posso scartare una carta se non ho armi?", a: "No. Devi decidere se affrontarla a mani nude o usare la Fuga (se disponibile)." },
               { q: "Perché la Fuga mette le carte in fondo e non le mescola?", a: "È una scelta di design: premia i giocatori che hanno memoria. Sapere esattamente cosa ti aspetta nelle ultime 4-8 carte del mazzo è fondamentale per vincere la partita." },
               { q: "Posso fuggire da una stanza di carry-over?", a: "Sì, se ci sono almeno 2 carte totali (la carta portata e le 3 nuove) e se il cooldown è terminato." },
