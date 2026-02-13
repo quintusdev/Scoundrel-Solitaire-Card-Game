@@ -13,9 +13,9 @@ const HUD: React.FC<HUDProps> = ({ state, effectClass }) => {
   const healthPercentage = (state.health / state.maxHealth) * 100;
   const isCritical = state.health <= 4;
 
-  // Calcolo del Piano (ogni 5 stanze un nuovo piano)
-  // Stanza 1-5 -> Piano 1, Stanza 6-10 -> Piano 2, etc.
-  const currentFloor = Math.floor((state.roomIndex - 1) / 5) + 1;
+  // LOGICA CORRETTA: Il Piano ora corrisponde esattamente all'indice della stanza.
+  // Poiché roomIndex parte da 1 nella funzione startNewGame, il Piano sarà 1, 2, 3...
+  const currentFloor = state.roomIndex;
 
   return (
     <div className={`hud-glass p-3 sm:p-4 rounded-2xl flex flex-col lg:flex-row gap-3 lg:gap-6 justify-between items-center mb-2 sm:mb-4 transition-all duration-300 ${effectClass && !effectClass.includes('animate-weapon-pop') ? effectClass : ''}`}>
@@ -37,37 +37,32 @@ const HUD: React.FC<HUDProps> = ({ state, effectClass }) => {
         </div>
       </div>
 
-      {/* Statistiche - Espandiamo a 5 colonne per includere il Piano */}
-      <div className="grid grid-cols-5 sm:flex gap-2 sm:gap-6 w-full lg:w-auto justify-between lg:justify-center">
+      {/* Statistiche Corrette */}
+      <div className="grid grid-cols-4 sm:flex gap-2 sm:gap-8 w-full lg:w-auto justify-between lg:justify-center">
         
-        {/* NEW: Piano Indicator */}
+        {/* Piano (Progressione Principale) */}
         <div className="text-center group">
           <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5 group-hover:text-amber-500 transition-colors">Piano</span>
-          <span className="text-xs sm:text-base font-black text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
+          <span className="text-sm sm:text-xl font-black text-amber-500 drop-shadow-[0_0_8px_rgba(245,158,11,0.3)]">
             {currentFloor}
           </span>
         </div>
 
         <div className="text-center">
           <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Arma</span>
-          <span className="text-xs sm:text-base font-black uppercase text-blue-400">
+          <span className="text-sm sm:text-xl font-black uppercase text-blue-400">
             {state.equippedWeapon ? `${getSuitIcon(state.equippedWeapon.suit)}${state.equippedWeapon.rank}` : "-"}
           </span>
         </div>
 
         <div className="text-center">
-          <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Stanza</span>
-          <span className="text-xs sm:text-base font-black text-white">{state.roomIndex}</span>
-        </div>
-
-        <div className="text-center">
           <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Mazzo</span>
-          <span className="text-xs sm:text-base font-black text-slate-400">{state.deck.length}</span>
+          <span className="text-sm sm:text-xl font-black text-slate-400">{state.deck.length}</span>
         </div>
 
         <div className="text-center">
           <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-0.5">Kills</span>
-          <span className="text-xs sm:text-base font-black text-red-500">{state.enemiesDefeated}</span>
+          <span className="text-sm sm:text-xl font-black text-red-500">{state.enemiesDefeated}</span>
         </div>
       </div>
 
