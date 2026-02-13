@@ -51,15 +51,13 @@ const App: React.FC = () => {
     if (saved) try { setGameStats(JSON.parse(saved)); } catch (e) { console.error(e); }
   }, []);
 
-  // Sfondo dinamico memoizzato
   const backgroundStyle = useMemo(() => ({
     backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.75), rgba(2, 6, 23, 0.95)), url('${getBackgroundByRoom(gameState.status === "start" ? 1 : gameState.roomIndex)}')`,
   }), [gameState.roomIndex, gameState.status]);
 
   /**
    * RECOLA UFFICIALE SCOUNDREL: Transizione Stanza
-   * Quando rimane 1 sola carta (Carry-over) o la stanza è vuota, 
-   * si passa automaticamente alla prossima area.
+   * La transizione avviene solo quando la stanza è vuota o rimane 1 sola carta (Carry-over).
    */
   const computeNextRoom = useCallback((state: GameState): GameState => {
     const deckSize = state.deck.length;
@@ -77,10 +75,7 @@ const App: React.FC = () => {
 
     if (!shouldCarryOver && !isRoomEmpty) return state;
 
-    // Feedback visivo transizione
-    if (shouldCarryOver) {
-      addToast("Stanza Completata!", "success");
-    }
+    addToast(shouldCarryOver ? "Nuova Stanza (Carry-over)" : "Nuova Stanza", "success");
 
     const deckCopy = [...state.deck];
     const cardsToDraw = GAME_RULES.CARDS_PER_ROOM - roomSize;
@@ -93,11 +88,10 @@ const App: React.FC = () => {
       roomIndex: state.roomIndex + 1,
       fugaDisponibile: !state.fugaUsataUltimaStanza,
       fugaUsataUltimaStanza: false,
-      selectedCardId: null // Reset selezione per la nuova stanza
+      selectedCardId: null
     };
   }, []);
 
-  // Centralizzazione salvataggio stats
   const finalizeStats = useCallback((finalState: GameState) => {
     const duration = Math.floor((Date.now() - finalState.startTime) / 1000);
     const summary: RunSummary = {
@@ -134,14 +128,29 @@ const App: React.FC = () => {
   }, []);
 
   const applyAction = (actionType: ActionType) => {
+    // AZIONE RITIRATA (FUGA)
     if (actionType === "FUGA") {
       if (!gameState.fugaDisponibile) return;
       setIsFleeing(true); 
+      
       setTimeout(() => {
-        setGameState(prev => computeNextRoom({
-          ...prev, deck: [...prev.deck, ...prev.room], room: [],
-          fugaDisponibile: false, fugaUsataUltimaStanza: true, selectedCardId: null
-        }));
+        setGameState(prev => {
+          // 1. Reinserimento: Tutte le carte della stanza tornano in fondo al deck
+          const updatedDeck = [...prev.deck, ...prev.room];
+          const midState = { 
+            ...prev, 
+            deck: updatedDeck, 
+            room: [], 
+            fugaDisponibile: false, 
+            fugaUsataUltimaStanza: true,
+            selectedCardId: null
+          };
+          
+          addToast("Ritirata: Carte rimesse nel mazzo", "warning");
+
+          // 2. Transizione: Pesca 4 nuove carte
+          return computeNextRoom(midState);
+        });
         setIsFleeing(false);
       }, 600);
       return;
@@ -158,6 +167,7 @@ const App: React.FC = () => {
 
     setTimeout(() => {
       setGameState(prev => {
+        // Rimuovi la carta dalla stanza (senza refill immediato)
         let next = { ...prev, room: prev.room.filter(c => c.id !== selectedCard.id), selectedCardId: null };
         
         if (actionType === "UNARMED") {
@@ -173,13 +183,16 @@ const App: React.FC = () => {
           next.health = Math.min(next.maxHealth, next.health + selectedCard.value);
         }
 
+        // Controllo morte
         if (next.health <= 0) {
           next.status = "lost";
           finalizeStats(next);
           return next;
         }
 
+        // Controllo transizione stanza (Regole Ufficiali: 0 o 1 carta rimasta)
         const transitioned = computeNextRoom(next);
+        
         if (transitioned.status === "won") finalizeStats(transitioned);
         return transitioned;
       });
@@ -188,10 +201,13 @@ const App: React.FC = () => {
   };
 
   const startNewGame = (isTutorial = false) => {
-    const deck = createDeck();
+    const fullDeck = createDeck();
+    const initialRoom = fullDeck.slice(0, 4);
+    const remainingDeck = fullDeck.slice(4);
+
     setGameState({
       status: "playing", mode: "normal", health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
-      equippedWeapon: null, deck: deck.slice(4), room: deck.slice(0, 4), roomIndex: 1,
+      equippedWeapon: null, deck: remainingDeck, room: initialRoom, roomIndex: 1,
       selectedCardId: null, fugaDisponibile: true, fugaUsataUltimaStanza: false, enemiesDefeated: 0,
       startTime: Date.now(),
       sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, runsUsed: 0, weaponsEquipped: 0, potionsUsed: 0 }
@@ -211,7 +227,6 @@ const App: React.FC = () => {
 
       <div className={`global-game-bg ${isHitStopped ? 'screen-shake' : ''}`} style={backgroundStyle} />
       
-      {/* Toast Overlay */}
       <div className="fixed top-20 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
         {toasts.map(t => <Toast key={t.id} message={t.message} kind={t.kind} />)}
       </div>
