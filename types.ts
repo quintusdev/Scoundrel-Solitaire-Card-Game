@@ -39,6 +39,21 @@ export interface ProfileStats {
   };
 }
 
+export interface SaveMetadata {
+  profileNickname: string;
+  difficulty: Difficulty;
+  health: number;
+  rooms: number;
+  timestamp: number;
+  version: string;
+}
+
+export interface SignedSave {
+  data: string; // Base64 encoded GameState
+  metadata: SaveMetadata;
+  signature: string; // HMAC SHA-256
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -53,6 +68,8 @@ export interface UserProfile {
   stats: Record<Difficulty | "general", ProfileStats>;
   currentGame: GameState | null;
   lastGame: RunSummary | null;
+  // Gestione slot: Max 2 per difficoltà
+  saves: Record<Difficulty, (SignedSave | null)[]>;
 }
 
 export interface SessionStats {

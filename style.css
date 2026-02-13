@@ -89,3 +89,7 @@
   0% { transform: translate(0, 0) scale(1); opacity: 1; }
   100% { transform: translate(var(--tw-translate-x), var(--tw-translate-y)) scale(0); opacity: 0; }
 }
+
+.modal-backdrop {
+  backdrop-filter: blur(8px);
+}

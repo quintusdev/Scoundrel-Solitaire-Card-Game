@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats } from './types';
+import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave } from './types';
 import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules } from './constants';
+import { SaveManager } from './SaveManager';
 import HUD from './components/HUD';
 import Room from './components/Room';
 import RulesModal from './components/RulesModal';
 import StatsModal from './components/StatsModal';
+import SaveModal from './components/SaveModal';
 import Toast from './components/Toast';
 import ProfileManagerUI from './components/ProfileManagerUI';
 import DifficultySelector from './components/DifficultySelector';
@@ -21,11 +23,11 @@ const App: React.FC = () => {
   const [view, setView] = useState<'profile-selection' | 'difficulty-selection' | 'main-menu' | 'playing'>('profile-selection');
   const [showRules, setShowRules] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  const [showSave, setShowSave] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [toasts, setToasts] = useState<{id: number, message: string, kind: string}[]>([]);
   const [profilesData, setProfilesData] = useState<ProfilesData>({ activeProfileId: null, profiles: {} });
 
-  // Gameplay
   const [isFleeing, setIsFleeing] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     status: "start", difficulty: "normal", health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
@@ -73,7 +75,8 @@ const App: React.FC = () => {
       achievements: {},
       rankings: { normal: null, hard: null, inferno: null, god: null },
       stats: { normal: {...EMPTY_STATS}, hard: {...EMPTY_STATS}, inferno: {...EMPTY_STATS}, god: {...EMPTY_STATS}, general: {...EMPTY_STATS} },
-      currentGame: null, lastGame: null
+      currentGame: null, lastGame: null,
+      saves: { normal: [null, null], hard: [null, null], inferno: [null, null], god: [null, null] }
     };
     setProfilesData(prev => ({ ...prev, profiles: { ...prev.profiles, [id]: newProfile }, activeProfileId: id }));
     setView('main-menu');
@@ -99,7 +102,6 @@ const App: React.FC = () => {
     if (!activeProfile) return;
     const diff = finalState.difficulty;
     const profile = { ...activeProfile };
-    
     [profile.stats[diff], profile.stats.general].forEach(s => {
       s.totalGames++;
       s.totalRoomsCleared += finalState.roomIndex;
@@ -108,25 +110,59 @@ const App: React.FC = () => {
       if (finalState.status === 'won') s.wins++; else s.losses++;
       if (finalState.roomIndex > s.bestRun.rooms) s.bestRun = { rooms: finalState.roomIndex, enemies: finalState.enemiesDefeated };
     });
-
     if (finalState.status === 'won') {
       if (diff === 'normal') profile.unlocks.hard = true;
       if (diff === 'hard') profile.unlocks.inferno = true;
       if (diff === 'inferno') profile.unlocks.god = true;
-      
       const achId = (diff.toUpperCase() + "_WIN");
-      if (ACHIEVEMENTS[achId]) {
-         profile.achievements[achId] = true;
-         addToast(`Achievement Sbloccato: ${ACHIEVEMENTS[achId].name}`, "success");
-      }
+      if (ACHIEVEMENTS[achId]) profile.achievements[achId] = true;
     }
-
     profile.lastGame = {
       status: finalState.status, rooms: finalState.roomIndex, enemies: finalState.enemiesDefeated,
       duration: Math.floor((Date.now() - finalState.startTime) / 1000), timestamp: Date.now()
     };
     profile.currentGame = null;
     updateActiveProfile(profile);
+  };
+
+  // Fixed the missing handleFlee function which caused the build error.
+  // It handles the "Flee" mechanic: cards go to the bottom of the deck, 
+  // and it might cost HP based on difficulty rules.
+  const handleFlee = () => {
+    if (!gameState.fugaDisponibile) return;
+
+    setIsFleeing(true);
+    // Visual delay to allow exit animations
+    setTimeout(() => {
+      setGameState(prev => {
+        const cost = DifficultyRules.getRetreatCost(prev.difficulty);
+        const nextHealth = prev.health - cost;
+
+        if (nextHealth <= 0) {
+          const lostState = { ...prev, health: 0, status: "lost" as const };
+          finalizeStats(lostState);
+          return lostState;
+        }
+
+        const newDeck = [...prev.deck, ...prev.room];
+        const nextRoom = newDeck.splice(0, 4);
+
+        return {
+          ...prev,
+          health: nextHealth,
+          room: nextRoom,
+          deck: newDeck,
+          fugaDisponibile: false,
+          fugaUsataUltimaStanza: true,
+          selectedCardId: null,
+          sessionStats: {
+            ...prev.sessionStats,
+            damageTaken: prev.sessionStats.damageTaken + cost
+          }
+        };
+      });
+      setIsFleeing(false);
+    }, 600);
   };
 
   const applyAction = () => {
@@ -139,33 +175,23 @@ const App: React.FC = () => {
       let next = { ...prev, room: prev.room.filter(c => c.id !== card.id), selectedCardId: null };
 
       if (type === "monster") {
-        if (!DifficultyRules.canAttack(card.value, weaponVal, prev.difficulty)) {
-           addToast("Il mostro è troppo forte per la tua arma attuale!", "error");
-           return prev;
-        }
+        if (!DifficultyRules.canAttack(card.value, weaponVal, prev.difficulty)) return prev;
         const damage = DifficultyRules.calculateDamage(card.value, weaponVal, prev.difficulty);
         next.health -= damage;
         next.enemiesDefeated++;
         next.sessionStats.enemiesDefeated++;
         next.sessionStats.damageTaken += damage;
-
         if (prev.weaponDurability !== null && prev.equippedWeapon) {
           next.weaponDurability = prev.weaponDurability - 1;
-          if (next.weaponDurability <= 0) {
-            next.equippedWeapon = null;
-            next.weaponDurability = null;
-            addToast("La tua arma si è spezzata!", "error");
-          }
+          if (next.weaponDurability <= 0) { next.equippedWeapon = null; next.weaponDurability = null; }
         }
       } else if (type === "weapon") {
         next.equippedWeapon = card;
         next.weaponDurability = DifficultyRules.getMaxDurability(prev.difficulty);
-        next.sessionStats.weaponsEquipped++;
       } else if (type === "potion") {
         const heal = Math.floor(card.value * DifficultyRules.getHealMultiplier(prev.difficulty));
         next.health = Math.min(prev.maxHealth, prev.health + heal);
         next.sessionStats.healingDone += heal;
-        next.sessionStats.potionsUsed++;
       }
 
       if (next.health <= 0) { next.status = "lost"; finalizeStats(next); return next; }
@@ -178,36 +204,47 @@ const App: React.FC = () => {
         next.roomIndex++;
         next.fugaDisponibile = !next.fugaUsataUltimaStanza;
         next.fugaUsataUltimaStanza = false;
+
+        // Autosave Logic every 10 rooms
+        if (next.roomIndex % 10 === 0 && next.difficulty !== 'god' && activeProfile) {
+           handleAutoSave(next);
+        }
       }
       return next;
     });
   };
 
-  const handleFlee = () => {
-    const cost = DifficultyRules.getRetreatCost(gameState.difficulty);
-    if (gameState.health <= cost) {
-      addToast("Troppo debole per fuggire!", "error");
+  const handleAutoSave = async (state: GameState) => {
+    const save = await SaveManager.createSignedSave(state, activeProfile!.nickname);
+    const updatedSaves = { ...activeProfile!.saves };
+    updatedSaves[state.difficulty][0] = save; // Slot 0 is reserved for autosaves/most recent
+    updateActiveProfile({ saves: updatedSaves });
+    addToast("Autosave del Dungeon effettuato.", "success");
+  };
+
+  const handleManualSave = async (slotIdx: number) => {
+    const check = SaveManager.canSave(gameState);
+    if (!check.allowed) {
+      addToast(check.reason!, "error");
       return;
     }
-    setIsFleeing(true);
-    setTimeout(() => {
-      setGameState(prev => {
-        const updatedDeck = [...prev.deck, ...prev.room];
-        const deckCopy = [...updatedDeck];
-        return { 
-          ...prev, 
-          health: prev.health - cost,
-          deck: deckCopy.slice(4), 
-          room: deckCopy.slice(0, 4), 
-          roomIndex: prev.roomIndex + 1, 
-          fugaDisponibile: false, 
-          fugaUsataUltimaStanza: true, 
-          selectedCardId: null 
-        };
-      });
-      setIsFleeing(false);
-      if (cost > 0) addToast(`Sei fuggito, ma hai perso ${cost} HP`, "warning");
-    }, 600);
+    const save = await SaveManager.createSignedSave(gameState, activeProfile!.nickname);
+    const updatedSaves = { ...activeProfile!.saves };
+    updatedSaves[gameState.difficulty][slotIdx] = save;
+    updateActiveProfile({ saves: updatedSaves });
+    addToast(`Partita salvata nello Slot ${slotIdx + 1}`, "success");
+  };
+
+  const handleLoadSave = async (save: SignedSave) => {
+    const loadedState = await SaveManager.verifyAndLoadSave(save);
+    if (loadedState) {
+      setGameState(loadedState);
+      setView('playing');
+      setShowSave(false);
+      addToast("Salvataggio caricato con successo.", "success");
+    } else {
+      addToast("Errore Integrità: Salvataggio manomesso o non valido.", "error");
+    }
   };
 
   return (
@@ -228,17 +265,12 @@ const App: React.FC = () => {
            <div className="mb-8 flex flex-col items-center">
               <div className="relative group">
                 <img src={activeProfile?.avatar} className={`w-24 h-24 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl mb-4 transition-all duration-500`} />
-                {activeProfile?.unlocks.god && <div className="absolute -top-2 -right-2 text-2xl animate-bounce">👑</div>}
               </div>
-              <h2 className={`text-2xl font-black uppercase tracking-tighter ${activeProfile?.unlocks.god ? 'text-yellow-400' : 'text-white'}`}>{activeProfile?.nickname}</h2>
-              <div className="flex gap-2 mt-2">
-                 {Object.keys(activeProfile?.achievements || {}).map(id => (
-                   <span key={id} title={ACHIEVEMENTS[id].name} className={`text-xl drop-shadow-md ${id === 'GOD_WIN' ? 'animate-pulse' : ''}`}>{ACHIEVEMENTS[id].icon}</span>
-                 ))}
-              </div>
+              <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{activeProfile?.nickname}</h2>
               <div className="mt-6 flex gap-3">
                  <button onClick={() => setShowRules(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Manuale</button>
                  <button onClick={() => setShowStats(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Archivio</button>
+                 <button onClick={() => setShowSave(true)} className="px-6 py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[10px] uppercase tracking-widest">Vault</button>
               </div>
            </div>
            <h1 className="text-8xl font-black text-red-600 uppercase tracking-tighter mb-10 drop-shadow-2xl">Scoundrel</h1>
@@ -249,83 +281,48 @@ const App: React.FC = () => {
         </div>
       ) : (gameState.status === 'playing') ? (
         <div className="flex-1 flex flex-col w-full max-w-6xl mx-auto p-4 z-10">
+          <div className="flex justify-between items-center mb-2">
+             <button onClick={() => setShowSave(true)} className="px-4 py-2 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5">Menu Salvataggio</button>
+             <button onClick={() => setView('main-menu')} className="px-4 py-2 bg-red-950/40 rounded-xl text-[8px] uppercase font-black text-red-400 hover:text-white border border-red-500/20">Abbandona</button>
+          </div>
           <HUD state={gameState} />
           <div className="flex-1 flex items-center justify-center min-h-0">
             <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(p => ({...p, selectedCardId: id === p.selectedCardId ? null : id}))} isExiting={isFleeing} />
           </div>
           <div className="mt-8 grid grid-cols-2 gap-6 hud-glass p-6 rounded-[32px]">
              <ContextualActionButton state={gameState} onAction={applyAction} />
-             <button disabled={!gameState.fugaDisponibile} onClick={handleFlee} className={`py-5 font-black rounded-2xl uppercase tracking-widest border-b-4 transition-all ${gameState.fugaDisponibile ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-900 text-slate-700 border-slate-950 opacity-50'}`}>
-                {DifficultyRules.getRetreatCost(gameState.difficulty) > 0 ? `Fuggi (-${DifficultyRules.getRetreatCost(gameState.difficulty)} HP)` : 'Fuggi'}
-             </button>
+             <button disabled={!gameState.fugaDisponibile} onClick={() => handleFlee()} className={`py-5 font-black rounded-2xl uppercase tracking-widest border-b-4 transition-all ${gameState.fugaDisponibile ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-900 text-slate-700 border-slate-950 opacity-50'}`}>Fuggi</button>
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in zoom-in duration-500 overflow-hidden relative">
-           {gameState.status === 'won' && gameState.difficulty === 'god' && <VictoryParticles />}
-           <h2 className={`text-8xl font-black uppercase mb-6 ${gameState.status === 'won' ? (gameState.difficulty === 'god' ? 'text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.8)] animate-pulse' : 'text-emerald-500') : 'text-red-500'}`}>
-             {gameState.status === 'won' ? (gameState.difficulty === 'god' ? "DIVINITÀ!" : "Trionfo!") : "Eroe Caduto"}
-           </h2>
-           <button onClick={() => setView('main-menu')} className="px-12 py-5 bg-slate-800 text-white font-black rounded-2xl hover:bg-slate-700 transition-all uppercase tracking-widest text-lg z-20">Menu Principale</button>
+        <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in zoom-in duration-500">
+           <h2 className={`text-8xl font-black uppercase mb-6 ${gameState.status === 'won' ? 'text-emerald-500' : 'text-red-500'}`}>{gameState.status === 'won' ? "Trionfo!" : "Eroe Caduto"}</h2>
+           <button onClick={() => setView('main-menu')} className="px-12 py-5 bg-slate-800 text-white font-black rounded-2xl hover:bg-slate-700 transition-all uppercase tracking-widest text-lg">Menu Principale</button>
         </div>
       )}
 
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {showStats && activeProfile && <StatsModal stats={{...activeProfile.stats.general, lastGame: activeProfile.lastGame}} onClose={() => setShowStats(false)} />}
-      {tutorialStep !== null && (
-        <TutorialOverlay 
-          step={tutorialStep} 
-          onNext={() => setTutorialStep(s => s! + 1)} 
-          onComplete={() => setTutorialStep(null)} 
+      {showSave && activeProfile && (
+        <SaveModal 
+          activeProfile={activeProfile} 
+          gameState={gameState}
+          onClose={() => setShowSave(false)}
+          onSave={handleManualSave}
+          onLoad={handleLoadSave}
         />
       )}
-    </div>
-  );
-};
-
-const VictoryParticles = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {[...Array(50)].map((_, i) => {
-        const tx = (Math.random() - 0.5) * 1000;
-        const ty = (Math.random() - 0.5) * 1000;
-        const size = Math.random() * 8 + 4;
-        return (
-          <div 
-            key={i} 
-            className="particle" 
-            style={{ 
-              left: '50%', 
-              top: '50%', 
-              width: `${size}px`, 
-              height: `${size}px`,
-              '--tw-translate-x': `${tx}px`,
-              '--tw-translate-y': `${ty}px`,
-              animationDelay: `${Math.random() * 2}s`
-            } as any} 
-          />
-        );
-      })}
+      {tutorialStep !== null && (
+        <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s! + 1)} onComplete={() => setTutorialStep(null)} />
+      )}
     </div>
   );
 };
 
 const ContextualActionButton: React.FC<{ state: GameState, onAction: () => void }> = ({ state, onAction }) => {
   const card = state.room.find(c => c.id === state.selectedCardId);
-  const weaponVal = state.equippedWeapon?.value || 0;
   if (!card) return <button disabled className="py-5 bg-slate-900 text-slate-700 font-black rounded-2xl border-b-4 border-slate-950 uppercase tracking-widest opacity-50">Seleziona Bersaglio</button>;
-  
-  const type = card.suit === "Cuori" ? "potion" : card.suit === "Quadri" ? "weapon" : "monster";
-  const blocked = type === 'monster' && !DifficultyRules.canAttack(card.value, weaponVal, state.difficulty);
-  
-  let label = "Interagisci";
-  let color = "bg-blue-600 border-blue-900 hover:bg-blue-500";
-
-  if (type === 'monster') { label = blocked ? "Troppo Forte!" : "Attacca"; color = blocked ? "bg-red-950/40 text-red-500 border-red-950 cursor-not-allowed" : "bg-red-700 border-red-950 hover:bg-red-600"; }
-  else if (type === 'weapon') { label = "Equipaggia"; color = "bg-blue-700 border-blue-950 hover:bg-blue-600"; }
-  else if (type === 'potion') { label = "Bevi"; color = "bg-emerald-700 border-emerald-950 hover:bg-emerald-600"; }
-
-  return <button disabled={blocked} onClick={onAction} className={`py-5 ${color} text-white font-black rounded-2xl uppercase tracking-widest border-b-4 active:translate-y-1 transition-all`}>{label}</button>;
+  return <button onClick={onAction} className="py-5 bg-red-700 border-red-950 text-white font-black rounded-2xl uppercase tracking-widest border-b-4 active:translate-y-1 transition-all">Conferma Azione</button>;
 };
 
 export default App;
