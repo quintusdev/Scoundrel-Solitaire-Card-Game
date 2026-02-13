@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Card as CardType, Difficulty } from '../types';
+import { Card as CardType, Difficulty, WorldShift } from '../types';
 import Card from './Card';
 
 interface RoomProps {
@@ -10,9 +10,10 @@ interface RoomProps {
   isExiting?: boolean;
   dyingCardId?: string | null;
   difficulty?: Difficulty;
+  activeShifts?: WorldShift[];
 }
 
-const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false, dyingCardId = null, difficulty }) => {
+const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = false, dyingCardId = null, difficulty, activeShifts = [] }) => {
   const isQuestion = difficulty === 'question';
   return (
     <div id="room-container" className="flex flex-row items-center justify-center gap-2 sm:gap-4 md:gap-6 w-full h-full max-h-[55vh] px-2 py-2 overflow-visible">
@@ -26,6 +27,7 @@ const Room: React.FC<RoomProps> = ({ cards, selectedId, onSelect, isExiting = fa
             isExiting={isExiting}
             isDying={dyingCardId === card.id}
             isQuestionMode={isQuestion}
+            activeShifts={activeShifts}
           />
         </div>
       ))}

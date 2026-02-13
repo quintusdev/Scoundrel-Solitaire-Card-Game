@@ -153,7 +153,7 @@ export const DifficultyRules = {
   getMaxDurability: (diff: Difficulty): number | null => {
     if (diff === 'inferno') return 3;
     if (diff === 'god') return 2;
-    if (diff === 'question') return 999; // Represents stability for the probabilistic logic
+    if (diff === 'question') return null; // Logic is probabilistic in App.tsx
     return null;
   },
 

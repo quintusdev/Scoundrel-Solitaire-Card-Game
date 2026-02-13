@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave, ChronicleEntry } from './types';
+import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave, ChronicleEntry, WorldShift, WorldState } from './types';
 import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules, getCardType, ETERNAL_VARIANTS } from './constants';
 import { SaveManager } from './SaveManager';
 import { ChronicleManager } from './ChronicleManager';
+import { WorldShiftManager } from './WorldShiftManager';
 import HUD from './components/HUD';
 import Room from './components/Room';
 import RulesModal from './components/RulesModal';
@@ -59,6 +60,21 @@ const App: React.FC = () => {
     if (saved) try { setProfilesData(JSON.parse(saved)); } catch (e) { console.error(e); }
   }, []);
 
+  // 7️⃣ SICUREZZA: Verifica firma worldState al boot (attraverso selezione profilo)
+  useEffect(() => {
+    if (activeProfile && view === 'main-menu') {
+      const verify = async () => {
+        const isValid = await WorldShiftManager.verifyWorldState(activeProfile.worldState);
+        if (!isValid && activeProfile.worldState.activeShifts.length > 0) {
+          console.warn("World State Tampered. Resetting...");
+          updateActiveProfile({ worldState: WorldShiftManager.createDefaultState() });
+          addToast("Integrità Mondo Compromessa. Stato resettato.", "error");
+        }
+      };
+      verify();
+    }
+  }, [activeProfile?.id, view]);
+
   useEffect(() => {
     const dataToSave = { ...profilesData };
     if ((gameState.difficulty === 'god' || gameState.difficulty === 'question') && activeProfile) {
@@ -106,7 +122,8 @@ const App: React.FC = () => {
       eternalUnlocks: { "Guerriero": [], "Ladro": [], "Mago": [], "Paladino": [] },
       selectedVariant: { "Guerriero": null, "Ladro": null, "Mago": null, "Paladino": null },
       progression: { tier: 0, paradoxUnlocked: false, paradoxSeen: false },
-      eternalHall: []
+      eternalHall: [],
+      worldState: WorldShiftManager.createDefaultState()
     };
     setProfilesData(prev => ({ ...prev, profiles: { ...prev.profiles, [id]: newProfile }, activeProfileId: id }));
     setIsBooting(true);
@@ -121,26 +138,39 @@ const App: React.FC = () => {
       if (!confirmRun) return;
     }
 
+    // 6️⃣ ATTIVAZIONE SHIFT: Solo per "The Question"
+    const shifts = diff === 'question' ? activeProfile?.worldState.activeShifts || [] : [];
+    const initialHP = shifts.some(s => s.effectId === 'max_hp_plus') ? GAME_RULES.INITIAL_HEALTH + 5 : GAME_RULES.INITIAL_HEALTH;
+
     const fullDeck = createDeck();
     const newState: GameState = {
-      status: "playing", difficulty: diff, health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
+      status: "playing", difficulty: diff, health: initialHP, maxHealth: initialHP,
       equippedWeapon: null, 
       weaponDurability: DifficultyRules.getMaxDurability(diff),
       deck: fullDeck.slice(4), room: fullDeck.slice(0, 4), roomIndex: 1,
       selectedCardId: null, fugaDisponibile: true, fugaUsataUltimaStanza: false, enemiesDefeated: 0,
       startTime: Date.now(),
-      sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: GAME_RULES.INITIAL_HEALTH }
+      sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: initialHP }
     };
     setGameState(newState);
     setView('playing');
   };
 
-  const finalizeStats = (finalState: GameState) => {
+  const finalizeStats = async (finalState: GameState) => {
     if (!activeProfile) return;
     const diff = finalState.difficulty;
     
-    // "The Question" mode does not impact official stats or Hall
+    // 3️⃣ GENERAZIONE SHIFT: Solo dopo vittoria/sconfitta in "The Question"
     if (diff === 'question') {
+       if (finalState.status === 'won' || finalState.status === 'lost') {
+         const newShift = await WorldShiftManager.generateBalancedShift(activeProfile.worldState.activeShifts);
+         let updatedShifts = [newShift, ...activeProfile.worldState.activeShifts];
+         if (updatedShifts.length > 7) updatedShifts = updatedShifts.slice(0, 7);
+         
+         const signature = await WorldShiftManager.signWorldState(updatedShifts);
+         updateActiveProfile({ worldState: { activeShifts: updatedShifts, maxShifts: 7, signature } });
+         addToast(`Mondo Contaminato: ${newShift.name}`, "info");
+       }
        setView('main-menu');
        return;
     }
@@ -171,6 +201,9 @@ const App: React.FC = () => {
 
       if (diff === 'god') {
         const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
+        // 4️⃣ ESPORTAZIONE HALL: Includi world shifts attuali nel salvataggio Hall
+        chronicle.worldShifts = [...profile.worldState.activeShifts];
+        
         if (!profile.eternalHall) profile.eternalHall = [];
         profile.eternalHall.unshift(chronicle);
 
@@ -207,7 +240,6 @@ const App: React.FC = () => {
       }
     }
 
-    // Paradox 42 Trigger
     if (!profile.progression.paradoxUnlocked && profile.eternalHall.length === 42 && profile.eternalHall.every(e => e.difficulty === 'god' && e.status === 'won')) {
       profile.progression.paradoxUnlocked = true;
       addToast("Il paradosso si è manifestato...", "info");
@@ -224,7 +256,11 @@ const App: React.FC = () => {
 
   const handleFlee = () => {
     if (!gameState.fugaDisponibile) return;
-    const cost = DifficultyRules.getRetreatCost(gameState.difficulty);
+    let cost = DifficultyRules.getRetreatCost(gameState.difficulty);
+    if (gameState.difficulty === 'question' && activeProfile?.worldState.activeShifts.some(s => s.effectId === 'flee_cost_plus')) {
+      cost += 1;
+    }
+
     if (gameState.health <= cost) { addToast("Salute troppo bassa per fuggire!", "error"); return; }
 
     setIsFleeing(true);
@@ -259,26 +295,36 @@ const App: React.FC = () => {
     setGameState(prev => {
       const type = getCardType(card.suit);
       const isQuestion = prev.difficulty === 'question';
+      const shifts = isQuestion ? (activeProfile?.worldState.activeShifts || []) : [];
       
-      // Unstable values for "The Question" mode
+      const dmgBonus = shifts.some(s => s.effectId === 'monster_dmg_plus') ? 1 : 0;
+      const weaponBonus = shifts.some(s => s.effectId === 'weapon_val_plus') ? 1 : 0;
+      const healBonus = shifts.some(s => s.effectId === 'potion_heal_plus') ? 2 : (shifts.some(s => s.effectId === 'potion_heal_minus') ? -2 : 0);
+
       const valueOffset = isQuestion ? (Math.floor(Math.random() * 3) - 1) : 0;
-      const effectiveCardValue = Math.max(1, card.value + valueOffset);
+      let effectiveCardValue = Math.max(1, card.value + valueOffset);
       
-      const weaponVal = prev.equippedWeapon?.value || 0;
+      const weaponVal = (prev.equippedWeapon?.value || 0) + weaponBonus;
       let next = { ...prev, room: prev.room.filter(c => c.id !== card.id), selectedCardId: null };
 
       if (type === "monster") {
         if (!DifficultyRules.canAttack(effectiveCardValue, weaponVal, prev.difficulty)) return prev;
-        const damage = DifficultyRules.calculateDamage(effectiveCardValue, weaponVal, prev.difficulty);
+        let damage = DifficultyRules.calculateDamage(effectiveCardValue, weaponVal, prev.difficulty);
+        if (damage > 0) damage += dmgBonus;
+        
         next.health -= damage;
         next.enemiesDefeated++;
         next.sessionStats.enemiesDefeated++;
         next.sessionStats.damageTaken += damage;
         next.sessionStats.minHealthReached = Math.min(next.sessionStats.minHealthReached, next.health);
 
+        if (isQuestion && shifts.some(s => s.effectId === 'regen_on_kill') && next.enemiesDefeated % 2 === 0) {
+          next.health = Math.min(next.maxHealth, next.health + 1);
+        }
+
         if (isQuestion && next.equippedWeapon) {
-           // Probabilistic durability for "The Question"
-           if (Math.random() < 0.33) {
+           const fragilityChance = shifts.some(s => s.effectId === 'weapon_fragile') ? 0.5 : 0.33;
+           if (Math.random() < fragilityChance) {
              next.equippedWeapon = null;
              next.weaponDurability = null;
              addToast("L'arma si è dissolta nel paradosso.", "warning");
@@ -292,7 +338,8 @@ const App: React.FC = () => {
         next.weaponDurability = DifficultyRules.getMaxDurability(prev.difficulty);
         next.sessionStats.weaponsEquipped++;
       } else if (type === "potion") {
-        const heal = Math.floor(effectiveCardValue * DifficultyRules.getHealMultiplier(prev.difficulty));
+        let heal = Math.floor(effectiveCardValue * DifficultyRules.getHealMultiplier(prev.difficulty));
+        heal = Math.max(0, heal + healBonus);
         next.health = Math.min(prev.maxHealth, prev.health + heal);
         next.sessionStats.healingDone += heal;
         next.sessionStats.potionsUsed++;
@@ -375,6 +422,15 @@ const App: React.FC = () => {
     }
   };
 
+  // 5️⃣ IMPORTAZIONE HALL – FUSIONE ORGANICA (B)
+  const handleIntegrateWorldShifts = async (importedShifts: WorldShift[]) => {
+    if (!activeProfile) return;
+    const fused = await WorldShiftManager.fuseOrganicShifts(activeProfile.worldState.activeShifts, importedShifts);
+    const signature = await WorldShiftManager.signWorldState(fused);
+    updateActiveProfile({ worldState: { ...activeProfile.worldState, activeShifts: fused, signature } });
+    addToast("Mondo Contaminato con successo.", "success");
+  };
+
   const handleMarkParadoxSeen = () => {
     if (!activeProfile) return;
     updateActiveProfile({ progression: { ...activeProfile.progression, paradoxSeen: true } });
@@ -387,7 +443,7 @@ const App: React.FC = () => {
   }, [activeProfile]);
 
   return (
-    <div className="h-screen w-full flex flex-col relative overflow-hidden bg-slate-950 text-slate-50">
+    <div className={`h-screen w-full flex flex-col relative overflow-hidden bg-slate-950 text-slate-50 ${gameState.difficulty === 'question' && activeProfile?.worldState.activeShifts.some(s => s.effectId === 'cosmetic_blue') ? 'cosmetic-blue' : ''}`}>
       <div className="cinematic-vignette" />
       <div className={`global-game-bg`} style={{ backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), url('${getBackgroundByRoom(gameState.roomIndex)}')` }} />
       
@@ -452,9 +508,9 @@ const App: React.FC = () => {
              <button disabled={gameState.difficulty === 'god' || gameState.difficulty === 'question'} onClick={() => setShowSave(true)} className="px-4 py-2 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5 disabled:opacity-20">Menu Salvataggio</button>
              <button onClick={() => { if(window.confirm("Abbandonare?")) setView('main-menu'); }} className="px-4 py-2 bg-red-950/40 rounded-xl text-[8px] uppercase font-black text-red-400 hover:text-white border border-red-500/20">Abbandona</button>
           </div>
-          <HUD state={gameState} eternalVariant={currentEternalVariant} />
+          <HUD state={gameState} eternalVariant={currentEternalVariant} worldShifts={activeProfile?.worldState.activeShifts || []} />
           <div className="flex-1 flex items-center justify-center min-h-0">
-            <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(p => ({...p, selectedCardId: id === p.selectedCardId ? null : id}))} isExiting={isFleeing} />
+            <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(p => ({...p, selectedCardId: id === p.selectedCardId ? null : id}))} isExiting={isFleeing} difficulty={gameState.difficulty} activeShifts={activeProfile?.worldState.activeShifts || []} />
           </div>
           <div className="mt-8 grid grid-cols-2 gap-6 hud-glass p-6 rounded-[32px]">
              <ContextualActionButton state={gameState} onAction={applyAction} />
@@ -479,11 +535,13 @@ const App: React.FC = () => {
       {showHall && activeProfile && (
         <HallOfEternal 
           chronicles={activeProfile.eternalHall || []} 
+          worldShifts={activeProfile.worldState.activeShifts || []}
           isParadox={activeProfile.progression.paradoxUnlocked}
           paradoxSeen={activeProfile.progression.paradoxSeen}
           onMarkSeen={handleMarkParadoxSeen}
           onClose={() => setShowHall(false)} 
           onImport={handleImportChronicle}
+          onIntegrateShifts={handleIntegrateWorldShifts}
         />
       )}
       {tutorialStep !== null && (

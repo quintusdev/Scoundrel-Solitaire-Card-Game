@@ -1,23 +1,26 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ChronicleEntry } from '../types';
+import { ChronicleEntry, WorldShift } from '../types';
 import { ChronicleManager } from '../ChronicleManager';
 import { ETERNAL_VARIANTS, DIFFICULTY_CONFIG } from '../constants';
 
 interface HallOfEternalProps {
   chronicles: ChronicleEntry[];
+  worldShifts: WorldShift[];
   isParadox: boolean;
   paradoxSeen: boolean;
   onMarkSeen: () => void;
   onClose: () => void;
   onImport: (code: string) => void;
+  onIntegrateShifts: (shifts: WorldShift[]) => void;
 }
 
-const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, isParadox, paradoxSeen, onMarkSeen, onClose, onImport }) => {
+const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, worldShifts, isParadox, paradoxSeen, onMarkSeen, onClose, onImport, onIntegrateShifts }) => {
   const [filter, setFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'glory' | 'sorrow'>('glory');
+  const [activeTab, setActiveTab] = useState<'glory' | 'sorrow' | 'world'>('glory');
   const [importCode, setImportCode] = useState('');
   const [paradoxPhase, setParadoxPhase] = useState<number>(0);
+  const [pendingIntegration, setPendingIntegration] = useState<WorldShift[] | null>(null);
 
   useEffect(() => {
     if (isParadox && !paradoxSeen) {
@@ -46,6 +49,23 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, isParadox, pa
     alert("Codice Cronaca copiato negli appunti!");
   };
 
+  const handleProcessImport = async () => {
+    try {
+      const entry = await ChronicleManager.verifyChronicle(importCode);
+      if (entry) {
+        onImport(importCode);
+        if (entry.worldShifts && entry.worldShifts.length > 0) {
+          setPendingIntegration(entry.worldShifts);
+        }
+        setImportCode('');
+      } else {
+        alert("Codice Cronaca non valido o corrotto.");
+      }
+    } catch(e) {
+      alert("Errore durante l'importazione.");
+    }
+  };
+
   const isParadoxActive = isParadox && paradoxSeen;
 
   return (
@@ -68,49 +88,90 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, isParadox, pa
         </div>
       )}
 
-      <div className={`w-full max-w-4xl rounded-[48px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-700 border-2 ${isParadoxActive ? 'bg-slate-900/40 border-cyan-500/50 shadow-cyan-500/20' : activeTab === 'glory' ? 'bg-slate-900 border-purple-500/30' : 'bg-slate-900 border-red-950'}`}>
+      {/* Integration Modal (B-Fusion) */}
+      {pendingIntegration && (
+        <div className="absolute inset-0 z-[550] bg-slate-950/90 flex items-center justify-center p-4">
+           <div className="w-full max-w-md bg-slate-900 border-2 border-cyan-500/50 p-8 rounded-[40px] shadow-2xl text-center space-y-6">
+              <span className="text-5xl">🌍</span>
+              <h3 className="text-2xl font-black text-white uppercase italic">Integrazione Mondo</h3>
+              <p className="text-slate-300 text-sm">Questo sigillo porta {pendingIntegration.length} cambiamenti nel mondo. Vuoi integrare queste anomalie nel tuo piano di realtà?</p>
+              <div className="flex gap-4">
+                 <button onClick={() => setPendingIntegration(null)} className="flex-1 py-4 bg-slate-800 text-slate-400 font-black rounded-2xl uppercase text-[10px] tracking-widest">Ignora</button>
+                 <button onClick={() => { onIntegrateShifts(pendingIntegration); setPendingIntegration(null); }} className="flex-1 py-4 bg-cyan-600 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest shadow-lg shadow-cyan-500/20">Integra</button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      <div className={`w-full max-w-4xl rounded-[48px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-700 border-2 ${isParadoxActive ? 'bg-slate-900/40 border-cyan-500/50 shadow-cyan-500/20' : activeTab === 'glory' ? 'bg-slate-900 border-purple-500/30' : activeTab === 'sorrow' ? 'bg-slate-900 border-red-950' : 'bg-slate-900 border-cyan-500/30'}`}>
         
         <div className={`p-8 border-b flex justify-between items-center ${isParadoxActive ? 'bg-cyan-950/20 border-cyan-500/20' : 'bg-slate-950/50 border-slate-800'}`}>
           <div>
-            <h2 className={`text-4xl font-black tracking-tighter uppercase italic transition-colors duration-500 ${isParadoxActive ? 'text-cyan-400' : activeTab === 'glory' ? 'text-white' : 'text-red-600'}`}>
-              {isParadoxActive ? 'Paradox Terminal 42' : 'Hall of Eternal'}
+            <h2 className={`text-4xl font-black tracking-tighter uppercase italic transition-colors duration-500 ${isParadoxActive ? 'text-cyan-400' : activeTab === 'glory' ? 'text-white' : activeTab === 'sorrow' ? 'text-red-600' : 'text-cyan-500'}`}>
+              {activeTab === 'world' ? 'World State' : isParadoxActive ? 'Paradox Terminal 42' : 'Hall of Eternal'}
             </h2>
-            <p className={`text-[10px] uppercase font-black tracking-[0.3em] transition-colors duration-500 ${isParadoxActive ? 'text-cyan-600' : activeTab === 'glory' ? 'text-purple-400' : 'text-red-950'}`}>
-              {isParadoxActive ? 'Database di Sistema Stabilizzato' : activeTab === 'glory' ? 'Cronache della Gloria' : 'Cronache del Dolore'}
+            <p className={`text-[10px] uppercase font-black tracking-[0.3em] transition-colors duration-500 ${isParadoxActive ? 'text-cyan-600' : activeTab === 'glory' ? 'text-purple-400' : activeTab === 'sorrow' ? 'text-red-950' : 'text-cyan-700'}`}>
+              {activeTab === 'world' ? 'Anomalie Dimensionali Attive' : isParadoxActive ? 'Database di Sistema Stabilizzato' : activeTab === 'glory' ? 'Cronache della Gloria' : 'Cronache del Dolore'}
             </p>
           </div>
           <button onClick={onClose} className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${isParadoxActive ? 'hover:bg-cyan-900/20 text-cyan-600 hover:text-cyan-400' : 'hover:bg-slate-800 text-slate-500 hover:text-white'}`}>✕</button>
         </div>
 
-        <div className={`grid grid-cols-2 border-b transition-colors duration-500 ${isParadoxActive ? 'border-cyan-500/20' : 'border-slate-800'}`}>
+        <div className={`grid grid-cols-3 border-b transition-colors duration-500 ${isParadoxActive ? 'border-cyan-500/20' : 'border-slate-800'}`}>
            <button 
              onClick={() => setActiveTab('glory')}
-             className={`py-6 text-[11px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'glory' ? (isParadoxActive ? 'bg-cyan-600/10 text-cyan-400 border-b-2 border-cyan-500' : 'bg-purple-600/10 text-white border-b-2 border-purple-500') : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
+             className={`py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'glory' ? (isParadoxActive ? 'bg-cyan-600/10 text-cyan-400 border-b-2 border-cyan-500' : 'bg-purple-600/10 text-white border-b-2 border-purple-500') : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
            >
-             Vittorie Eterne
+             Gloria
            </button>
            <button 
              onClick={() => setActiveTab('sorrow')}
-             className={`py-6 text-[11px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'sorrow' ? 'bg-red-950/10 text-red-600 border-b-2 border-red-600' : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
+             className={`py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'sorrow' ? 'bg-red-950/10 text-red-600 border-b-2 border-red-600' : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
            >
-             Cadute Memorabili
+             Dolore
+           </button>
+           <button 
+             onClick={() => setActiveTab('world')}
+             className={`py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'world' ? 'bg-cyan-950/10 text-cyan-500 border-b-2 border-cyan-500' : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
+           >
+             World State
            </button>
         </div>
 
-        <div className={`flex border-b transition-colors duration-500 bg-slate-950/30 overflow-x-auto scrollbar-hide ${isParadoxActive ? 'border-cyan-500/20' : 'border-slate-800'}`}>
-          {['all', 'flawless', 'no_potion', 'no_retreat'].map(f => (
-            <button 
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-8 py-4 text-[9px] uppercase font-black tracking-widest transition-all whitespace-nowrap ${filter === f ? 'text-white bg-slate-800' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              {f === 'all' ? 'Tutte' : ETERNAL_VARIANTS[f].name}
-            </button>
-          ))}
-        </div>
-
         <div className="p-8 flex-1 overflow-y-auto space-y-4 scrollbar-hide">
-          {filteredChronicles.length === 0 ? (
+          {activeTab === 'world' ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center px-4 mb-4">
+                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anomalie Persistenti</span>
+                 <span className="text-[10px] font-black text-white bg-slate-800 px-3 py-1 rounded-full uppercase tracking-tighter">{worldShifts.length} / 7</span>
+              </div>
+              {worldShifts.length === 0 ? (
+                <div className="h-64 flex flex-col items-center justify-center text-center opacity-30">
+                  <span className="text-6xl mb-4">🌍</span>
+                  <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Nessun paradosso stabilizzato.</p>
+                  <p className="text-[10px] mt-2 italic">Completa spedizioni in modalità "The Question" per alterare il mondo.</p>
+                </div>
+              ) : (
+                worldShifts.map((shift) => (
+                  <div key={shift.id} className={`p-6 bg-slate-800/20 border-2 rounded-3xl flex justify-between items-center transition-all ${shift.category === 'hostile' ? 'border-red-950 hover:bg-red-950/10' : shift.category === 'beneficial' ? 'border-emerald-950/20 hover:bg-emerald-950/10' : 'border-cyan-950/20 hover:bg-cyan-950/10'}`}>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                         <h4 className={`text-xl font-black uppercase tracking-tight ${shift.category === 'hostile' ? 'text-red-500' : shift.category === 'beneficial' ? 'text-emerald-500' : 'text-cyan-500'}`}>{shift.name}</h4>
+                         <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${shift.source === 'local' ? 'text-slate-400 border-slate-700' : 'text-cyan-400 border-cyan-800 animate-pulse'}`}>
+                           {shift.source}
+                         </span>
+                      </div>
+                      <p className="text-xs text-slate-300">{shift.description}</p>
+                      <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-2 block">ID: {shift.id.split('_').pop()} • {new Date(shift.timestamp).toLocaleDateString()}</span>
+                    </div>
+                    <div className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${shift.category === 'hostile' ? 'text-red-400 border-red-500/20 bg-red-500/5' : shift.category === 'beneficial' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' : 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5'}`}>
+                      {shift.category}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          ) : filteredChronicles.length === 0 ? (
             <div className="h-64 flex flex-col items-center justify-center text-center opacity-30">
                <span className={`text-6xl mb-4 transition-transform duration-500 ${isParadoxActive ? 'animate-pulse' : ''}`}>
                  {isParadoxActive ? '🌀' : activeTab === 'glory' ? '📜' : '🪦'}
@@ -133,12 +194,7 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, isParadox, pa
                          <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${DIFFICULTY_CONFIG[entry.difficulty].color} border-current opacity-40`}>
                            {DIFFICULTY_CONFIG[entry.difficulty].label}
                          </span>
-                         {entry.variants.map(v => (
-                           <span key={v} className="text-[7px] font-black uppercase bg-slate-950 border border-slate-800 px-2 py-0.5 rounded-full text-slate-500">
-                             {ETERNAL_VARIANTS[v].icon} {ETERNAL_VARIANTS[v].name}
-                           </span>
-                         ))}
-                         {entry.p42 && <span className="text-[7px] font-black uppercase bg-cyan-500/20 border border-cyan-500/30 px-2 py-0.5 rounded-full text-cyan-400">P42</span>}
+                         {entry.worldShifts && entry.worldShifts.length > 0 && <span className="text-[7px] font-black uppercase bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full text-cyan-400">🌍 {entry.worldShifts.length} Shifts</span>}
                       </div>
                    </div>
                 </div>
@@ -147,10 +203,6 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, isParadox, pa
                    <div>
                       <span className="block text-[8px] uppercase font-black text-slate-600">Area</span>
                       <span className={`text-lg font-black transition-colors ${isParadoxActive ? 'text-cyan-300' : activeTab === 'glory' ? 'text-white' : 'text-red-950'}`}>{entry.rooms}</span>
-                   </div>
-                   <div>
-                      <span className="block text-[8px] uppercase font-black text-slate-600">Kills</span>
-                      <span className={`text-lg font-black transition-colors ${isParadoxActive ? 'text-cyan-300' : activeTab === 'glory' ? 'text-white' : 'text-red-950'}`}>{entry.stats.enemiesDefeated}</span>
                    </div>
                 </div>
 
@@ -175,15 +227,12 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, isParadox, pa
                onChange={(e) => setImportCode(e.target.value)}
              />
              <button 
-               onClick={() => { onImport(importCode); setImportCode(''); }}
+               onClick={handleProcessImport}
                className={`px-8 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest transition-all ${isParadoxActive ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400' : 'bg-white text-slate-950 hover:bg-slate-200'}`}
              >
                Importa
              </button>
           </div>
-          <p className={`text-[8px] font-bold uppercase tracking-widest text-center italic transition-colors ${isParadoxActive ? 'text-cyan-700' : 'text-slate-600'}`}>
-            {isParadoxActive ? '"Il paradosso non è un errore, è la chiave."' : '"Le memorie sono l\'unico tesoro che il dungeon non può reclamare."'}
-          </p>
         </div>
       </div>
     </div>

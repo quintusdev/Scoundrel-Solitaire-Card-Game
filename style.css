@@ -4,6 +4,11 @@
   --gold-glow: rgba(250, 204, 21, 0.4);
 }
 
+.cosmetic-blue {
+  filter: hue-rotate(180deg) brightness(1.1);
+  transition: filter 1s ease-in-out;
+}
+
 .god-card-bg {
   background: linear-gradient(135deg, rgba(66, 32, 6, 0.8), rgba(25, 20, 5, 0.95));
 }
@@ -79,6 +84,22 @@
   from { background-position: 0 0, 40px 60px, 130px 270px; }
   to { background-position: 550px 550px, 390px 410px, 380px 820px; }
 }
+
+/* World Shift Animations */
+@keyframes distort {
+  0%, 100% { transform: skew(0deg); filter: hue-rotate(0deg); }
+  25% { transform: skew(2deg); filter: hue-rotate(10deg) brightness(1.2); }
+  50% { transform: skew(-2deg); }
+  75% { transform: skew(1deg); filter: hue-rotate(-10deg); }
+}
+
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-distort { animation: distort 4s infinite linear; }
+.animate-scanline { animation: scanline 3s infinite linear; }
 
 /* Evolutive Chest Animations */
 @keyframes chest-pulse-iron {

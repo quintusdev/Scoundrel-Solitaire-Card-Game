@@ -4,6 +4,26 @@ export type ActionType = "PRIMARY_ACTION" | "FUGA";
 export type GameStatus = "start" | "playing" | "won" | "lost";
 export type Difficulty = "normal" | "hard" | "inferno" | "god" | "question";
 
+export type ShiftCategory = "hostile" | "beneficial" | "neutral";
+export type ShiftSource = "local" | "imported";
+
+export interface WorldShift {
+  id: string;
+  name: string;
+  category: ShiftCategory;
+  description: string;
+  effectId: string;
+  timestamp: number;
+  source: ShiftSource;
+  signature: string;
+}
+
+export interface WorldState {
+  activeShifts: WorldShift[];
+  maxShifts: number;
+  signature: string;
+}
+
 export interface Card {
   id: string;      
   suit: Suit;      
@@ -49,9 +69,9 @@ export interface SaveMetadata {
 }
 
 export interface SignedSave {
-  data: string; // Base64 encoded GameState
+  data: string;
   metadata: SaveMetadata;
-  signature: string; // HMAC SHA-256
+  signature: string;
 }
 
 export interface ChronicleEntry {
@@ -63,9 +83,10 @@ export interface ChronicleEntry {
   stats: SessionStats;
   rooms: number;
   difficulty: Difficulty;
-  variants: string[]; // e.g., ["flawless", "no_potion"]
+  variants: string[];
   status: "won" | "lost";
   p42?: boolean;
+  worldShifts?: WorldShift[]; // Include world state in the chronicle for B-Fusion
 }
 
 export interface SignedChronicle {
@@ -91,11 +112,12 @@ export interface UserProfile {
   eternalUnlocks: Record<string, string[]>; 
   selectedVariant: Record<string, string | null>;
   progression: {
-    tier: number; // 0, 1, 2, 3
+    tier: number;
     paradoxUnlocked: boolean;
     paradoxSeen: boolean;
   };
   eternalHall: ChronicleEntry[];
+  worldState: WorldState;
 }
 
 export interface SessionStats {
