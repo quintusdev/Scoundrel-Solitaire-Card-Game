@@ -2,19 +2,42 @@
 import { Card, Suit } from './types';
 
 /**
- * SCOPO DEL FILE: Configurazione globale e asset procedurali.
- * RESPONSABILITÀ: Gestire la logica "statica" del gioco (mappe valori, generazione SVG).
- * DIPENDENZE: types.ts
- * IMPATTO: Estetico e Matematico. Definisce la potenza delle carte e il loro aspetto.
+ * ASSET VISIVI DEL DUNGEON
+ * Una collezione di sfondi che variano per atmosfera.
  */
+export const DUNGEON_BACKGROUNDS = [
+  "https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2094&auto=format&fit=crop", // Area 1: Dungeon Oscuro
+  "https://images.unsplash.com/photo-1615672334841-844463300994?q=80&w=2070&auto=format&fit=crop", // Area 2: Cripta Alchemica
+  "https://images.unsplash.com/photo-1519074063912-ad2d6d51dd27?q=80&w=1974&auto=format&fit=crop", // Area 3: Caverna di Ghiaccio
+  "https://images.unsplash.com/photo-1505673542670-a5e3ff5b14a3?q=80&w=1974&auto=format&fit=crop"  // Area 4: Sala del Trono
+];
+
+/**
+ * LOGICA DI PROGRESSIONE SFONDO
+ * @param {number} index - L'indice attuale della stanza (roomIndex).
+ * 
+ * Implementazione Senior: 
+ * Calcoliamo il 'settore' dividendo per 5. 
+ * Esempio: 
+ * Stanze 1-5 -> Settore 0 (Sfondo 1)
+ * Stanze 6-10 -> Settore 1 (Sfondo 2)
+ */
+export const getBackgroundByRoom = (index: number): string => {
+  // roomIndex parte da 1. Sottraiamo 1 per normalizzare a zero-based.
+  const normalizedIndex = Math.max(0, index - 1);
+  
+  // Dividiamo per 5 e arrotondiamo (es: stanza 3 -> 3/5 = 0.6 -> settore 0)
+  const sectorIndex = Math.floor(normalizedIndex / 5);
+  
+  // Usiamo il modulo per riciclare gli sfondi se il giocatore supera la stanza 20
+  const bgIndex = sectorIndex % DUNGEON_BACKGROUNDS.length;
+  
+  return DUNGEON_BACKGROUNDS[bgIndex];
+};
 
 export const SUITS: Suit[] = ["Cuori", "Quadri", "Fiori", "Picche"];
 export const RANKS = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
 
-/**
- * Converte il rango testuale in valore numerico.
- * TODO: Valutare se 'A' debba valere 1 o 14 a seconda del contesto (Scoundrel standard vs custom).
- */
 export const getCardValue = (rank: string): number => {
   switch (rank) {
     case "J": return 11;
@@ -25,77 +48,47 @@ export const getCardValue = (rank: string): number => {
   }
 };
 
-/**
- * Determina il ruolo meccanico della carta basandosi sul seme.
- */
 export const getCardType = (suit: Suit) => {
   if (suit === "Cuori") return "potion";
   if (suit === "Quadri") return "weapon";
   return "monster";
 };
 
-/**
- * ENGINE GRAFICO PROCEDURALE
- * Genera un SVG 16x16 pixel basato su semi e valori.
- * Questa tecnica garantisce scalabilità infinita senza perdita di qualità e peso nullo.
- * 
- * @param type - Il tipo di oggetto (mostro, arma, pozione)
- * @param value - Influisce sulla complessità del disegno (es. mostri più grandi)
- */
 export const generatePixelArtSVG = (type: string, value: number): string => {
   const size = 16; 
   const pixels: { x: number, y: number, color: string }[] = [];
-  
-  // Hash deterministico basato sulla carta per garantire che una carta specifica 
-  // abbia sempre lo stesso aspetto visivo durante la sessione.
   const stringSeed = type.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const seed = (stringSeed + value) * 1337;
-
   const seededRandom = (s: number) => {
     const x = Math.sin(seed + s) * 10000;
     return x - Math.floor(x);
   };
-
   const drawPixel = (x: number, y: number, color: string) => {
-    if (x >= 0 && x < size && y >= 0 && y < size) {
-      pixels.push({ x, y, color });
-    }
+    if (x >= 0 && x < size && y >= 0 && y < size) pixels.push({ x, y, color });
   };
-
-  // Funzione per specchiare il disegno (usata per i mostri, per dare un senso di 'faccia')
   const drawSymmetric = (x: number, y: number, color: string) => {
     drawPixel(x, y, color);
-    if (x !== 7 && x !== 8) {
-      drawPixel(size - 1 - x, y, color);
-    }
+    if (x !== 7 && x !== 8) drawPixel(size - 1 - x, y, color);
   };
 
-  // LOGICA DI DISEGNO PER TIPO
   if (type === "monster") {
-    // I mostri sopra valore 10 sono colorati di rosso (Elite)
     const mainColor = value > 10 ? "#ef4444" : "#4338ca"; 
     const darkColor = value > 10 ? "#7f1d1d" : "#312e81";
     const eyeColor = "#ffffff";
-
     for (let y = 4; y <= 12; y++) {
       let width = y < 6 ? 2 : y > 10 ? 3 : 5;
       for (let x = 8 - width; x <= 7; x++) {
         let color = (x + y) % 3 === 0 ? darkColor : mainColor;
-        // Glitch visivo casuale
         if (seededRandom(x * y) > 0.92) color = "#ffffff22"; 
         drawSymmetric(x, y, color);
       }
     }
     drawSymmetric(5, 7, eyeColor); 
     if (value > 6) drawSymmetric(4, 7, eyeColor);
-  } 
-  
-  else if (type === "weapon") {
-    // Le armi crescono in lunghezza in base al loro valore
+  } else if (type === "weapon") {
     const bladeColor = "#cbd5e1";
     const hiltColor = "#d97706";
     const gemColor = value > 12 ? "#3b82f6" : "#b91c1c";
-
     const bladeHeight = value;
     const startY = Math.max(1, 12 - bladeHeight);
     for (let y = startY; y <= 11; y++) {
@@ -105,13 +98,9 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     const guardWidth = value > 10 ? 3 : 2;
     for (let x = 8 - guardWidth; x <= 7 + guardWidth; x++) drawPixel(x, 12, hiltColor);
     drawPixel(7, 14, gemColor); 
-  }
-
-  else if (type === "potion") {
-    // Le pozioni sono più o meno 'piene' in base al valore di cura
+  } else if (type === "potion") {
     const liqColor = value > 10 ? "#ec4899" : "#10b981";
     const fillHeight = Math.floor((value / 14) * 8) + 1;
-
     for (let y = 6; y <= 14; y++) {
       const w = y < 8 ? 2 : y > 12 ? 3 : 4;
       for (let x = 8 - w; x <= 7 + w; x++) {
@@ -121,21 +110,10 @@ export const generatePixelArtSVG = (type: string, value: number): string => {
     }
   }
 
-  const rects = pixels.map(p => 
-    `<rect x="${p.x}" y="${p.y}" width="1" height="1" fill="${p.color}" />`
-  ).join("");
-
-  return `
-    <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-      ${rects}
-    </svg>
-  `;
+  const rects = pixels.map(p => `<rect x="${p.x}" y="${p.y}" width="1" height="1" fill="${p.color}" />`).join("");
+  return `<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">${rects}</svg>`;
 };
 
-/**
- * Genera un mazzo completo escludendo le figure rosse (Regola originale Scoundrel).
- * Utilizza l'algoritmo di Fisher-Yates per lo shuffle.
- */
 export const createDeck = (): Card[] => {
   const deck: Card[] = [];
   SUITS.forEach(suit => {

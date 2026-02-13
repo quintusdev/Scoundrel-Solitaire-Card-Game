@@ -1,65 +1,106 @@
 
 /**
- * STILI GLOBALI E ANIMAZIONI
- * Ottimizzato per Viewport-Lock (Zero Scroll)
+ * STILI GLOBALI E ANIMAZIONI - CINEMATIC EDITION
+ * Ottimizzato per simulare un rendering da Game Engine.
  */
 
 :root {
   --primary: #ef4444;
   --gold: #facc15;
   --bg-dark: #020617;
+  --vignette-opacity: 0.6;
 }
 
 body {
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Blocca lo scroll verticale globale */
+  overflow: hidden;
   height: 100vh;
   height: 100dvh;
+  background-color: var(--bg-dark);
+  color: #f1f5f9;
 }
 
 #root {
   height: 100%;
 }
 
-/* BACKGROUND ENGINE */
+/* BACKGROUND ENGINE - UNREAL STYLE */
 .global-game-bg {
   position: fixed;
-  inset: 0;
+  inset: -10px; /* Leggero overflow per evitare bordi bianchi nel blur/shake */
   z-index: -2;
   background-size: cover;
   background-position: center;
-  filter: blur(8px) brightness(0.2);
-  transition: background-image 1s ease-in-out;
-  transform: scale(1.1);
+  filter: blur(12px) brightness(0.25) saturate(0.8);
+  transition: background-image 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(1.05);
 }
 
-/* GLASSMORPHISM */
+/* CINEMATIC OVERLAY SYSTEM */
+.cinematic-vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 500;
+  background: radial-gradient(circle, transparent 20%, rgba(0,0,0,var(--vignette-opacity)) 100%);
+}
+
+.film-grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 501;
+  opacity: 0.04;
+  background-image: url("https://www.transparenttextures.com/patterns/stardust.png");
+  animation: grain-dance 1s steps(2) infinite;
+}
+
+@keyframes grain-dance {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-1%, -1%); }
+}
+
+/* SCREEN SHAKE EFFECT (Per colpi subiti) */
+.screen-shake {
+  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* GLASSMORPHISM AVANZATO */
 .hud-glass {
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(12px) saturate(150%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.4);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 10px 30px -10px rgba(0, 0, 0, 0.8),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
-/* ANIMAZIONE SELEZIONE */
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 10px rgba(250, 204, 21, 0.2); border-color: rgba(250, 204, 21, 0.4); }
-  50% { box-shadow: 0 0 25px rgba(250, 204, 21, 0.6); border-color: rgba(250, 204, 21, 1); }
-}
-
-.pulse-glow {
-  animation: pulse-glow 1.5s infinite ease-in-out;
-}
-
-/* ANIMAZIONE DISSOLVENZA */
+/* ANIMAZIONI CARTE */
 @keyframes card-shatter {
-  0% { transform: scale(1); opacity: 1; filter: brightness(1); }
-  100% { transform: scale(0.2) rotate(20deg); opacity: 0; filter: brightness(3); }
+  0% { transform: scale(1); opacity: 1; filter: brightness(1) contrast(1); }
+  50% { filter: brightness(2) contrast(1.5); }
+  100% { transform: scale(0.2) rotate(15deg) translateY(-50px); opacity: 0; filter: brightness(4); }
 }
 
 .card-defeat {
   animation: card-shatter 0.5s forwards cubic-bezier(0.6, -0.28, 0.735, 0.045);
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s infinite ease-in-out;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(250, 204, 21, 0.1); border-color: rgba(250, 204, 21, 0.3); }
+  50% { box-shadow: 0 0 35px rgba(250, 204, 21, 0.5); border-color: rgba(250, 204, 21, 0.8); }
 }
 
 .animate-flash-red {
@@ -68,15 +109,23 @@ body {
 
 @keyframes flash-red {
   0%, 100% { background-color: #ef4444; }
-  50% { background-color: #7f1d1d; box-shadow: 0 0 15px #ef4444; }
+  50% { background-color: #991b1b; box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
 }
 
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-/* Adattamento per schermi molto bassi */
-@media (max-height: 600px) {
-  .card-art {
-    display: none; /* Nasconde l'arte procedurale se lo schermo è troppo piccolo per risparmiare spazio */
-  }
+/* REATTIVITÀ AL COLPO */
+.hit-flash {
+  position: fixed;
+  inset: 0;
+  background: rgba(239, 68, 68, 0.15);
+  pointer-events: none;
+  z-index: 1000;
+  animation: hit-flash-anim 0.3s ease-out forwards;
+}
+
+@keyframes hit-flash-anim {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
 }

@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GameState, Card, GameMode, ActionResponse, GameStats, SessionStats, Suit } from './types';
-import { createDeck, getCardType, generatePixelArtSVG } from './constants';
+import { createDeck, getCardType, generatePixelArtSVG, getBackgroundByRoom } from './constants';
 import HUD from './components/HUD';
 import Room from './components/Room';
 import RulesModal from './components/RulesModal';
@@ -63,6 +63,16 @@ const App: React.FC = () => {
   const [isFleeing, setIsFleeing] = useState(false);
   const [dyingCardId, setDyingCardId] = useState<string | null>(null);
   const [isHitStopped, setIsHitStopped] = useState(false); 
+  const [showHitFlash, setShowHitFlash] = useState(false);
+
+  // --- LOGICA SFONDO DINAMICO ---
+  const currentBackgroundImage = useMemo(() => {
+    return getBackgroundByRoom(gameState.status === "start" ? 1 : gameState.roomIndex);
+  }, [gameState.roomIndex, gameState.status]);
+
+  const backgroundStyle = {
+    backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.75), rgba(2, 6, 23, 0.95)), url('${currentBackgroundImage}')`,
+  };
 
   // Caricamento Statistiche
   useEffect(() => {
@@ -76,25 +86,49 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const currentBgImage = gameState.roomIndex % 2 === 0 ? 'dungeon.jpg' : 'cripta.jpg';
-  const backgroundStyle = {
-    backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.7), rgba(2, 6, 23, 0.9)), url('https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=2094&auto=format&fit=crop')`,
+  const checkGameStateTransitions = (state: GameState): GameState => {
+    if (state.room.length <= 1) {
+        const deckCopy = [...state.deck];
+        const cardsToDraw = 4 - state.room.length;
+        const nextCards = deckCopy.splice(0, cardsToDraw);
+
+        if (nextCards.length === 0 && state.room.length === 0) {
+            return { ...state, status: "won" };
+        }
+
+        const canFleeNextRoom = !state.fugaUsataUltimaStanza;
+
+        return {
+          ...state,
+          deck: deckCopy,
+          room: [...state.room, ...nextCards],
+          roomIndex: state.roomIndex + 1,
+          fugaDisponibile: canFleeNextRoom,
+          fugaUsataUltimaStanza: false,
+        };
+    }
+    return state;
   };
 
   const applyAction = (actionType: string) => {
     if (actionType === "FUGA") {
       if (!gameState.fugaDisponibile) return;
+      
       setIsFleeing(true); 
       setTimeout(() => {
-        setGameState(prev => ({
-          ...prev,
-          deck: [...prev.deck, ...prev.room], 
-          room: [],        
-          fugaDisponibile: false,              
-          selectedCardId: null
-        }));
+        setGameState(prev => {
+          const newDeck = [...prev.deck, ...prev.room];
+          const stateAfterFlee: GameState = {
+            ...prev,
+            deck: newDeck,
+            room: [],        
+            fugaDisponibile: false, 
+            fugaUsataUltimaStanza: true,
+            selectedCardId: null
+          };
+          return checkGameStateTransitions(stateAfterFlee);
+        });
         setIsFleeing(false);
-        if (tutorialStep === 7) setTutorialStep(8);
       }, 600);
       return;
     }
@@ -103,21 +137,21 @@ const App: React.FC = () => {
     const selectedCard = room.find(c => c.id === selectedCardId);
     if (!selectedCard) return;
 
-    // Trigger Tutorial Steps
-    if (tutorialStep !== null) {
-      if (tutorialStep === 2 && actionType === "UNARMED") setTutorialStep(3);
-      if (tutorialStep === 4 && actionType === "WEAPON") setTutorialStep(5);
-      if (tutorialStep === 6 && actionType === "POTION_ROOM") setTutorialStep(7);
+    const isHarmful = actionType === "UNARMED" || (actionType === "WEAPON" && selectedCard.suit !== "Quadri" && selectedCard.value > (gameState.equippedWeapon?.value || 0));
+    
+    if (isHarmful) {
+      setIsHitStopped(true);
+      setShowHitFlash(true);
+      setTimeout(() => {
+        setIsHitStopped(false);
+        setShowHitFlash(false);
+      }, 300);
     }
-
-    setIsHitStopped(true);
-    setTimeout(() => setIsHitStopped(false), 100);
 
     setDyingCardId(selectedCard.id); 
     setTimeout(() => {
       setGameState(prev => {
         const next = { ...prev };
-        
         if (actionType === "UNARMED") {
           next.health -= selectedCard.value;
         } else if (actionType === "WEAPON") {
@@ -147,58 +181,53 @@ const App: React.FC = () => {
     }, 400);
   };
 
-  const checkGameStateTransitions = (state: GameState): GameState => {
-    if (state.room.length <= 1) {
-        const nextCards = state.deck.splice(0, 4 - state.room.length);
-        if (nextCards.length === 0 && state.room.length === 0) {
-            state.status = "won";
-            return state;
-        }
-        state.room = [...state.room, ...nextCards];
-        state.roomIndex += 1;
-        state.fugaDisponibile = true;
-    }
-    return state;
-  };
-
   const startNewGame = (isTutorial = false) => {
     const deck = createDeck();
-    setGameState(prev => ({
-      ...prev,
+    setGameState({
       status: "playing",
+      mode: "normal",
       health: INITIAL_HEALTH,
+      maxHealth: INITIAL_HEALTH,
+      equippedWeapon: null,
       deck: deck.slice(4),
       room: deck.slice(0, 4),
       roomIndex: 1,
-      equippedWeapon: null,
       selectedCardId: null,
+      fugaDisponibile: true,
+      fugaUsataUltimaStanza: false,
       enemiesDefeated: 0,
-      fugaDisponibile: true
-    }));
+      sessionStats: {
+        roomsReached: 1,
+        enemiesDefeated: 0,
+        damageTaken: 0,
+        healingDone: 0,
+        runsUsed: 0,
+        weaponsEquipped: 0,
+        potionsUsed: 0,
+      },
+    });
     if (isTutorial) setTutorialStep(0);
     else setTutorialStep(null);
   };
 
   const onSelectCard = (id: string) => {
-    setGameState(p => {
-      const isDeselect = id === p.selectedCardId;
-      
-      // Tutorial Selection Triggers
-      if (tutorialStep === 1 && id.includes("Picche")) setTutorialStep(2);
-      if (tutorialStep === 3 && id.includes("Quadri")) setTutorialStep(4);
-      if (tutorialStep === 5 && id.includes("Cuori")) setTutorialStep(6);
-
-      return {...p, selectedCardId: isDeselect ? null : id};
-    });
+    setGameState(p => ({...p, selectedCardId: id === p.selectedCardId ? null : id}));
   };
 
   return (
     <div className="h-screen w-full flex flex-col relative overflow-hidden font-sans bg-slate-950 text-slate-50">
-      <div className="global-game-bg" style={backgroundStyle} />
+      <div className="cinematic-vignette" />
+      <div className="film-grain" />
+      {showHitFlash && <div className="hit-flash" />}
+
+      <div 
+        className={`global-game-bg ${isHitStopped ? 'screen-shake' : ''}`} 
+        style={backgroundStyle} 
+      />
       
       {gameState.status === "start" ? (
-        <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center">
-          <h1 className="text-6xl md:text-8xl font-black text-red-600 uppercase tracking-tighter drop-shadow-2xl mb-2">Scoundrel</h1>
+        <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in fade-in duration-700">
+          <h1 className="text-6xl md:text-8xl font-black text-red-600 uppercase tracking-tighter drop-shadow-2xl mb-2 animate-pulse">Scoundrel</h1>
           <p className="text-slate-500 font-bold tracking-[0.3em] uppercase text-xs mb-10">Dungeon Crawling Card Game</p>
           
           <div className="flex flex-col gap-4 w-full max-w-xs">
@@ -218,79 +247,35 @@ const App: React.FC = () => {
               </button>
               
               <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => setShowStats(true)}
-                  className="py-3 bg-slate-900/80 text-slate-400 font-bold rounded-xl border border-slate-700 hover:bg-slate-800 hover:text-white transition-all text-[10px] uppercase tracking-widest"
-                >
-                  Statistiche
-                </button>
-                <button 
-                  onClick={() => setShowRules(true)}
-                  className="py-3 bg-slate-900/80 text-slate-400 font-bold rounded-xl border border-slate-700 hover:bg-slate-800 hover:text-white transition-all text-[10px] uppercase tracking-widest"
-                >
-                  Regole
-                </button>
+                <button onClick={() => setShowStats(true)} className="py-3 bg-slate-900/80 text-slate-400 font-bold rounded-xl border border-slate-700 hover:bg-slate-800 hover:text-white transition-all text-[10px] uppercase tracking-widest">Statistiche</button>
+                <button onClick={() => setShowRules(true)} className="py-3 bg-slate-900/80 text-slate-400 font-bold rounded-xl border border-slate-700 hover:bg-slate-800 hover:text-white transition-all text-[10px] uppercase tracking-widest">Regole</button>
               </div>
             </div>
           </div>
         </div>
       ) : gameState.status === "won" || gameState.status === "lost" ? (
-         <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center">
-            <h2 className={`text-6xl font-black uppercase mb-4 ${gameState.status === "won" ? 'text-emerald-500' : 'text-red-500'}`}>
-               {gameState.status === "won" ? "Vittoria!" : "Caduto"}
-            </h2>
-            <p className="text-slate-400 mb-8 max-w-md">Hai raggiunto la stanza {gameState.roomIndex}. Il dungeon ha ancora segreti da svelare.</p>
-            <button 
-               onClick={() => setGameState(p => ({...p, status: "start"}))}
-               className="px-8 py-4 bg-slate-800 text-white font-black rounded-xl hover:bg-slate-700 transition-all uppercase tracking-widest text-sm"
-            >
-               Torna alla Home
-            </button>
+         <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in zoom-in duration-500">
+            <h2 className={`text-6xl font-black uppercase mb-4 ${gameState.status === "won" ? 'text-emerald-500' : 'text-red-500'}`}>{gameState.status === "won" ? "Vittoria!" : "Caduto"}</h2>
+            <button onClick={() => setGameState(p => ({...p, status: "start"}))} className="px-8 py-4 bg-slate-800 text-white font-black rounded-xl hover:bg-slate-700 transition-all uppercase tracking-widest text-sm">Torna alla Home</button>
          </div>
       ) : (
-        <div className={`flex-1 flex flex-col w-full max-w-6xl mx-auto p-2 sm:p-4 transition-transform duration-75 ${isHitStopped ? 'scale-[0.98] brightness-125' : ''}`}>
+        <div className="flex-1 flex flex-col w-full max-w-6xl mx-auto p-2 sm:p-4 z-10">
           <HUD state={gameState} />
-          
-          <div className="flex-1 flex items-center justify-center min-h-0">
-            <Room 
-              cards={gameState.room} 
-              selectedId={gameState.selectedCardId}
-              onSelect={onSelectCard}
-              isExiting={isFleeing}
-              dyingCardId={dyingCardId}
-            />
+          <div className={`flex-1 flex items-center justify-center min-h-0 transition-transform duration-75 ${isHitStopped ? 'screen-shake scale-[0.97] brightness-125' : ''}`}>
+            <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={onSelectCard} isExiting={isFleeing} dyingCardId={dyingCardId} />
           </div>
-
           <div className="mt-2 mb-2 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 hud-glass p-3 sm:p-4 rounded-[24px] sm:rounded-[32px]">
-            <button id="unarmed-btn" onClick={() => applyAction("UNARMED")} className="py-3 sm:py-4 bg-orange-700 text-white font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 border-orange-950 active:translate-y-1 transition-all">Mani Nude</button>
-            <button id="weapon-btn" onClick={() => applyAction("WEAPON")} className="py-3 sm:py-4 bg-blue-700 text-white font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 border-blue-950 active:translate-y-1 transition-all">Attacca / Equip</button>
-            <button id="potion-btn" onClick={() => applyAction("POTION_ROOM")} className="py-3 sm:py-4 bg-emerald-700 text-white font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 border-emerald-950 active:translate-y-1 transition-all">Cura</button>
-            <button 
-              id="flee-btn"
-              disabled={!gameState.fugaDisponibile}
-              onClick={() => applyAction("FUGA")} 
-              className={`py-3 sm:py-4 font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 active:translate-y-1 transition-all ${gameState.fugaDisponibile ? 'bg-slate-700 border-slate-900 text-white' : 'bg-slate-900 text-slate-600 border-slate-950 opacity-40 cursor-not-allowed'}`}
-            >
-              Ritirata
-            </button>
+            <button onClick={() => applyAction("UNARMED")} className="py-3 sm:py-4 bg-orange-700 text-white font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 border-orange-950 active:translate-y-1 transition-all">Mani Nude</button>
+            <button onClick={() => applyAction("WEAPON")} className="py-3 sm:py-4 bg-blue-700 text-white font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 border-blue-950 active:translate-y-1 transition-all">Attacca / Equip</button>
+            <button onClick={() => applyAction("POTION_ROOM")} className="py-3 sm:py-4 bg-emerald-700 text-white font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 border-emerald-950 active:translate-y-1 transition-all">Cura</button>
+            <button disabled={!gameState.fugaDisponibile} onClick={() => applyAction("FUGA")} className={`py-3 sm:py-4 font-bold rounded-xl uppercase text-[10px] sm:text-xs tracking-widest border-b-4 active:translate-y-1 transition-all ${gameState.fugaDisponibile ? 'bg-slate-700 border-slate-900 text-white' : 'bg-slate-900 text-slate-600 border-slate-950 opacity-40 cursor-not-allowed'}`}>Ritirata</button>
           </div>
         </div>
       )}
 
-      {/* MODALS & OVERLAYS */}
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {showStats && <StatsModal stats={gameStats} onClose={() => setShowStats(false)} />}
-      {tutorialStep !== null && (
-        <TutorialOverlay 
-          step={tutorialStep} 
-          onNext={() => setTutorialStep(s => s !== null ? s + 1 : null)} 
-          onComplete={() => setTutorialStep(null)} 
-        />
-      )}
-
-      <div className="fixed top-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
-        {toasts.map(t => <Toast key={t.id} message={t.message} kind={t.kind} />)}
-      </div>
+      {tutorialStep !== null && <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s !== null ? s + 1 : null)} onComplete={() => setTutorialStep(null)} />}
     </div>
   );
 };
