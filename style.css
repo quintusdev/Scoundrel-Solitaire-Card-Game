@@ -1,131 +1,91 @@
 
-/**
- * STILI GLOBALI E ANIMAZIONI - CINEMATIC EDITION
- * Ottimizzato per simulare un rendering da Game Engine.
- */
-
 :root {
-  --primary: #ef4444;
   --gold: #facc15;
-  --bg-dark: #020617;
-  --vignette-opacity: 0.6;
+  --gold-glow: rgba(250, 204, 21, 0.4);
 }
 
-body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  height: 100vh;
-  height: 100dvh;
-  background-color: var(--bg-dark);
-  color: #f1f5f9;
+.god-card-bg {
+  background: linear-gradient(135deg, rgba(66, 32, 6, 0.8), rgba(25, 20, 5, 0.95));
 }
 
-#root {
-  height: 100%;
+.god-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(250, 204, 21, 0) 0%,
+    rgba(250, 204, 21, 0.3) 50%,
+    rgba(250, 204, 21, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
 }
 
-/* BACKGROUND ENGINE - UNREAL STYLE */
-.global-game-bg {
-  position: fixed;
-  inset: -10px; /* Leggero overflow per evitare bordi bianchi nel blur/shake */
-  z-index: -2;
-  background-size: cover;
-  background-position: center;
-  filter: blur(12px) brightness(0.25) saturate(0.8);
-  transition: background-image 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-  transform: scale(1.05);
+.god-border-glow {
+  box-shadow: 0 0 20px var(--gold-glow), inset 0 0 10px var(--gold-glow);
+  border-color: var(--gold) !important;
+  animation: border-pulse 2s infinite alternate;
 }
 
-/* CINEMATIC OVERLAY SYSTEM */
+@keyframes border-pulse {
+  from { border-color: rgba(250, 204, 21, 0.5); }
+  to { border-color: rgba(250, 204, 21, 1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s infinite ease-in-out;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+.hud-glass {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 20px 50px -15px rgba(0,0,0,0.8);
+}
+
 .cinematic-vignette {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 500;
-  background: radial-gradient(circle, transparent 20%, rgba(0,0,0,var(--vignette-opacity)) 100%);
+  background: radial-gradient(circle, transparent 30%, rgba(0,0,0,0.7) 100%);
+  z-index: 1;
 }
 
-.film-grain {
+.global-game-bg {
   position: fixed;
-  inset: 0;
+  inset: -20px;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(10px) brightness(0.3);
+}
+
+.card-animate:hover {
+  transform: translateY(-8px) scale(1.02);
+  z-index: 50;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Particle effect for GOD victory */
+.particle {
+  position: absolute;
+  background: var(--gold);
+  border-radius: 50%;
   pointer-events: none;
-  z-index: 501;
-  opacity: 0.04;
-  background-image: url("https://www.transparenttextures.com/patterns/stardust.png");
-  animation: grain-dance 1s steps(2) infinite;
+  animation: particle-fly 3s ease-out forwards;
 }
 
-@keyframes grain-dance {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-1%, -1%); }
-}
-
-/* SCREEN SHAKE EFFECT (Per colpi subiti) */
-.screen-shake {
-  animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-}
-
-@keyframes shake {
-  10%, 90% { transform: translate3d(-1px, 0, 0); }
-  20%, 80% { transform: translate3d(2px, 0, 0); }
-  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-  40%, 60% { transform: translate3d(4px, 0, 0); }
-}
-
-/* GLASSMORPHISM AVANZATO */
-.hud-glass {
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
-    0 10px 30px -10px rgba(0, 0, 0, 0.8),
-    inset 0 1px 1px rgba(255, 255, 255, 0.05);
-}
-
-/* ANIMAZIONI CARTE */
-@keyframes card-shatter {
-  0% { transform: scale(1); opacity: 1; filter: brightness(1) contrast(1); }
-  50% { filter: brightness(2) contrast(1.5); }
-  100% { transform: scale(0.2) rotate(15deg) translateY(-50px); opacity: 0; filter: brightness(4); }
-}
-
-.card-defeat {
-  animation: card-shatter 0.5s forwards cubic-bezier(0.6, -0.28, 0.735, 0.045);
-}
-
-.pulse-glow {
-  animation: pulse-glow 2s infinite ease-in-out;
-}
-
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(250, 204, 21, 0.1); border-color: rgba(250, 204, 21, 0.3); }
-  50% { box-shadow: 0 0 35px rgba(250, 204, 21, 0.5); border-color: rgba(250, 204, 21, 0.8); }
-}
-
-.animate-flash-red {
-  animation: flash-red 0.5s infinite;
-}
-
-@keyframes flash-red {
-  0%, 100% { background-color: #ef4444; }
-  50% { background-color: #991b1b; box-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
-}
-
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-
-/* REATTIVITÀ AL COLPO */
-.hit-flash {
-  position: fixed;
-  inset: 0;
-  background: rgba(239, 68, 68, 0.15);
-  pointer-events: none;
-  z-index: 1000;
-  animation: hit-flash-anim 0.3s ease-out forwards;
-}
-
-@keyframes hit-flash-anim {
-  0% { opacity: 1; }
-  100% { opacity: 0; }
+@keyframes particle-fly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tw-translate-x), var(--tw-translate-y)) scale(0); opacity: 0; }
 }

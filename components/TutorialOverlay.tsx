@@ -21,50 +21,24 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     text: "L'obiettivo è svuotare il mazzo restando in vita. Questa è la tua prima stanza.",
   },
   {
-    targetId: "card-Picche-5",
+    targetId: "room-container",
     title: "I Mostri (Fiori/Picche)",
-    text: "Sono i tuoi nemici. Clicca sulla carta Picche per selezionarla.",
-    actionRequired: "SELECT_CARD"
+    text: "Sconfiggili usando armi o a mani nude. In modalità Hard subisci il danno pieno se la tua arma è debole.",
   },
   {
-    targetId: "unarmed-btn",
-    title: "Combattere a Mani Nude",
-    text: "Senza armi subisci danni pari al valore del mostro. Clicca 'MANI NUDE'.",
-    actionRequired: "CLICK_UNARMED"
+    targetId: "room-container",
+    title: "Difficoltà Inferno",
+    text: "Qui non puoi attaccare mostri più forti dell'arma. Inoltre, l'arma ha solo 3 usi prima di rompersi.",
   },
   {
-    targetId: "card-Quadri-8",
-    title: "Le Armi (Quadri)",
-    text: "Le armi riducono i danni. Seleziona la carta Quadri (8).",
-    actionRequired: "SELECT_WEAPON"
+    targetId: "room-container",
+    title: "GOD MODE",
+    text: "La sfida finale. L'arma dura solo 2 colpi, le cure sono ridotte del 75% e fuggire costa 2 HP.",
   },
   {
-    targetId: "weapon-btn",
-    title: "Equipaggiamento",
-    text: "Clicca 'ATTACCA/EQUIP'. Ora batterai mostri fino a valore 8 subendo 0 danni!",
-    actionRequired: "EQUIP_WEAPON"
-  },
-  {
-    targetId: "card-Cuori-4",
-    title: "Le Cure (Cuori)",
-    text: "Seleziona la pozione per curarti prima di proseguire.",
-    actionRequired: "SELECT_POTION"
-  },
-  {
-    targetId: "potion-btn",
-    title: "Bere la Pozione",
-    text: "Clicca 'CURA (CUORI)' per recuperare salute (Max 20 HP).",
-    actionRequired: "USE_POTION"
-  },
-  {
-    targetId: "flee-btn",
-    title: "Ritirata Strategica",
-    text: "Puoi fuggire rimescolando la stanza, ma non puoi farlo due volte di fila!",
-  },
-  {
-    targetId: "hud-health",
+    targetId: "room-container",
     title: "Pronto al Combattimento",
-    text: "Basi apprese. Svuota il dungeon e sopravvivi, Scoundrel!",
+    text: "Basi apprese. Sblocca nuove modalità vincendo spedizioni. Buona fortuna, Scoundrel!",
   }
 ];
 
@@ -107,7 +81,6 @@ const TutorialOverlay: React.FC<Props> = ({ step, onNext, onComplete }) => {
 
   return (
     <div className="fixed inset-0 z-[600] pointer-events-none">
-      {/* Maschera cutout ultra-leggera */}
       <div 
         className="tutorial-cutout" 
         style={{ 
@@ -118,7 +91,6 @@ const TutorialOverlay: React.FC<Props> = ({ step, onNext, onComplete }) => {
         } as React.CSSProperties} 
       />
       
-      {/* Barra superiore compatta */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-[95%] max-w-4xl pointer-events-auto">
         <div className="bg-slate-900/90 backdrop-blur-2xl border-2 border-blue-500/40 p-4 rounded-[28px] shadow-[0_15px_40px_rgba(0,0,0,0.6)] flex items-center gap-6 overflow-hidden">
           
@@ -136,24 +108,15 @@ const TutorialOverlay: React.FC<Props> = ({ step, onNext, onComplete }) => {
           </p>
           
           <div className="flex items-center gap-3">
-            {!currentStep.actionRequired ? (
-              <button 
-                onClick={isLast ? onComplete : onNext}
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl transition-all uppercase tracking-widest text-[10px] shadow-lg active:scale-95 whitespace-nowrap"
-              >
-                {isLast ? "COMPLETA" : "AVANTI"}
-              </button>
-            ) : (
-              <div className="flex items-center gap-3 px-4 py-2 bg-blue-500/10 rounded-xl border border-blue-500/20 animate-pulse">
-                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-blue-400 whitespace-nowrap">Azione Richiesta</span>
-              </div>
-            )}
-            {!currentStep.actionRequired && (
-              <button onClick={onComplete} className="p-2 text-slate-500 hover:text-white transition-colors">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            )}
+            <button 
+              onClick={isLast ? onComplete : onNext}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl transition-all uppercase tracking-widest text-[10px] shadow-lg active:scale-95 whitespace-nowrap"
+            >
+              {isLast ? "COMPLETA" : "AVANTI"}
+            </button>
+            <button onClick={onComplete} className="p-2 text-slate-500 hover:text-white transition-colors">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
           </div>
         </div>
       </div>

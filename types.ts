@@ -2,7 +2,7 @@
 export type Suit = "Cuori" | "Quadri" | "Fiori" | "Picche";
 export type ActionType = "PRIMARY_ACTION" | "FUGA";
 export type GameStatus = "start" | "playing" | "won" | "lost";
-export type Difficulty = "normal" | "hard" | "inferno";
+export type Difficulty = "normal" | "hard" | "inferno" | "god";
 
 export interface Card {
   id: string;      
@@ -11,21 +11,12 @@ export interface Card {
   value: number;   
 }
 
-export interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  unlocked: boolean;
-}
-
 export interface RankEntry {
   score: number;
   date: string;
   rooms: number;
 }
 
-// Added RunSummary to track session details for StatsModal
 export interface RunSummary {
   status: GameStatus;
   rooms: number;
@@ -39,7 +30,6 @@ export interface ProfileStats {
   losses: number;
   totalGames: number;
   bestScore: number;
-  // Added fields required by StatsModal
   totalRoomsCleared: number;
   totalDamageTaken: number;
   totalHealingDone: number;
@@ -57,12 +47,11 @@ export interface UserProfile {
   avatar: string;
   version: string;
   lastActivity: string;
-  unlocks: { hard: boolean; inferno: boolean };
+  unlocks: { hard: boolean; inferno: boolean; god: boolean };
   achievements: Record<string, boolean>;
   rankings: Record<Difficulty, RankEntry | null>;
   stats: Record<Difficulty | "general", ProfileStats>;
   currentGame: GameState | null;
-  // Track last game for the archive view
   lastGame: RunSummary | null;
 }
 
@@ -81,7 +70,7 @@ export interface GameState {
   health: number;
   maxHealth: number;
   equippedWeapon: Card | null;
-  weaponDurability: number | null; // Solo Inferno
+  weaponDurability: number | null; 
   deck: Card[];
   room: Card[];
   selectedCardId: string | null;
