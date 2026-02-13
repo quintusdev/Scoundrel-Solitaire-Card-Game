@@ -13,6 +13,7 @@ import ProfileManagerUI from './components/ProfileManagerUI';
 import DifficultySelector from './components/DifficultySelector';
 import TutorialOverlay from './components/TutorialOverlay';
 import VariantSelector from './components/VariantSelector';
+import EvolutiveChest from './components/EvolutiveChest';
 
 const EMPTY_STATS: ProfileStats = { 
   wins: 0, losses: 0, totalGames: 0, bestScore: 0,
@@ -73,6 +74,13 @@ const App: React.FC = () => {
     }));
   };
 
+  const calculateProgressionTier = (profile: UserProfile): number => {
+    if (profile.unlocks.god && Object.values(profile.eternalUnlocks).some(u => u.length > 0)) return 3;
+    if (profile.unlocks.inferno) return 2;
+    if (profile.unlocks.hard) return 1;
+    return 0;
+  };
+
   const handleCreateProfile = (name: string, nickname: string, heroClass: string, avatar: string) => {
     const id = `profile_${Date.now()}`;
     const newProfile: UserProfile = {
@@ -85,7 +93,8 @@ const App: React.FC = () => {
       currentGame: null, lastGame: null,
       saves: { normal: [null, null], hard: [null, null], inferno: [null, null], god: [null, null] },
       eternalUnlocks: { "Guerriero": [], "Ladro": [], "Mago": [], "Paladino": [] },
-      selectedVariant: { "Guerriero": null, "Ladro": null, "Mago": null, "Paladino": null }
+      selectedVariant: { "Guerriero": null, "Ladro": null, "Mago": null, "Paladino": null },
+      progression: { tier: 0 }
     };
     setProfilesData(prev => ({ ...prev, profiles: { ...prev.profiles, [id]: newProfile }, activeProfileId: id }));
     setView('main-menu');
@@ -139,11 +148,8 @@ const App: React.FC = () => {
         }
       }
 
-      // Eternal Tier 3 Logic
       if (diff === 'god') {
         const classEternal = profile.eternalUnlocks[heroClass] || [];
-        
-        // 3 God Wins = Standard Variant
         if (profile.stats.god.wins >= GAME_RULES.GOD_WINS_FOR_ETERNAL) {
           if (!classEternal.includes('standard')) {
             classEternal.push('standard');
@@ -151,41 +157,25 @@ const App: React.FC = () => {
             addToast(`Tier 3 Sbloccato per ${heroClass}!`, "success");
           }
         }
-
-        // Flawless Variant: Never < 50% HP
         if (finalState.sessionStats.minHealthReached >= finalState.maxHealth / 2) {
-          if (!classEternal.includes('flawless')) {
-            classEternal.push('flawless');
-            addToast("Variante Eterno Sbloccata: Immacolato", "success");
-          }
+          if (!classEternal.includes('flawless')) classEternal.push('flawless');
         }
-
-        // NoPotion Variant: 0 potions used
         if (finalState.sessionStats.potionsUsed === 0) {
-          if (!classEternal.includes('no_potion')) {
-            classEternal.push('no_potion');
-            addToast("Variante Eterno Sbloccata: Ascetico", "success");
-          }
+          if (!classEternal.includes('no_potion')) classEternal.push('no_potion');
         }
-
-        // NoRetreat Variant: 0 retreats used
         if (finalState.sessionStats.retreatsUsed === 0) {
-          if (!classEternal.includes('no_retreat')) {
-            classEternal.push('no_retreat');
-            addToast("Variante Eterno Sbloccata: Incrollabile", "success");
-          }
+          if (!classEternal.includes('no_retreat')) classEternal.push('no_retreat');
         }
-
         profile.eternalUnlocks[heroClass] = classEternal;
       }
 
       const achId = (diff.toUpperCase() + "_WIN");
       if (ACHIEVEMENTS[achId] && !profile.achievements[achId]) {
          profile.achievements[achId] = true;
-         addToast(`Achievement Sbloccato: ${ACHIEVEMENTS[achId].name}`, "success");
       }
     }
 
+    profile.progression.tier = calculateProgressionTier(profile);
     profile.lastGame = {
       status: finalState.status, rooms: finalState.roomIndex, enemies: finalState.enemiesDefeated,
       duration: Math.floor((Date.now() - finalState.startTime) / 1000), timestamp: Date.now()
@@ -316,7 +306,6 @@ const App: React.FC = () => {
     selectedVariant[heroClass] = variantId;
     updateActiveProfile({ selectedVariant });
     setShowVariants(false);
-    addToast(variantId ? `Variante ${ETERNAL_VARIANTS[variantId].name} attivata` : "Variante base attivata", "success");
   };
 
   const currentEternalVariant = useMemo(() => {
@@ -344,7 +333,7 @@ const App: React.FC = () => {
               <div className="relative group">
                 <img src={activeProfile?.avatar} className={`w-24 h-24 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl mb-4 transition-all duration-500`} />
                 {currentEternalVariant && (
-                  <div className="absolute -bottom-2 -right-2 bg-slate-950 border border-yellow-500/50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg animate-bounce" title={currentEternalVariant.name}>
+                  <div className="absolute -bottom-2 -right-2 bg-slate-950 border border-yellow-500/50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg animate-bounce">
                     {currentEternalVariant.icon}
                   </div>
                 )}
@@ -357,16 +346,24 @@ const App: React.FC = () => {
                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{activeProfile?.heroClass}</p>
               </div>
 
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
-                 <button onClick={() => setShowRules(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Manuale</button>
-                 <button onClick={() => setShowStats(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Archivio</button>
-                 <button onClick={() => setShowSave(true)} className="px-6 py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[10px] uppercase tracking-widest">Vault</button>
-                 {activeProfile && Object.values(activeProfile.eternalUnlocks).some(u => u.length > 0) && (
-                   <button onClick={() => setShowVariants(true)} className="px-6 py-3 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[10px] uppercase tracking-widest">Eternal Variants</button>
-                 )}
+              <div className="mt-8 flex flex-col items-center gap-6">
+                 <div className="flex gap-4">
+                    <button onClick={() => setShowRules(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Manuale</button>
+                    <button onClick={() => setShowSave(true)} className="px-6 py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[10px] uppercase tracking-widest">Vault</button>
+                    {activeProfile && Object.values(activeProfile.eternalUnlocks).some(u => u.length > 0) && (
+                      <button onClick={() => setShowVariants(true)} className="px-6 py-3 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[10px] uppercase tracking-widest">Eternal Variants</button>
+                    )}
+                 </div>
+                 
+                 <EvolutiveChest 
+                   tier={activeProfile?.progression.tier || 0} 
+                   onClick={() => setShowStats(true)} 
+                 />
               </div>
            </div>
+           
            <h1 className="text-8xl font-black text-red-600 uppercase tracking-tighter mb-10 drop-shadow-2xl">Scoundrel</h1>
+           
            <div className="flex flex-col gap-4 w-full max-w-xs">
               <button onClick={() => setView('difficulty-selection')} className="py-5 bg-red-600 text-white font-black rounded-2xl border-b-8 border-red-950 active:translate-y-2 active:border-b-0 transition-all text-xl uppercase italic">Inizia Spedizione</button>
               <button onClick={() => setView('profile-selection')} className="py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">Cambia Profilo</button>
@@ -400,13 +397,7 @@ const App: React.FC = () => {
         <SaveModal activeProfile={activeProfile} gameState={gameState} onClose={() => setShowSave(false)} onSave={handleManualSave} onLoad={handleLoadSave} />
       )}
       {showVariants && activeProfile && (
-        <VariantSelector 
-          heroClass={activeProfile.heroClass} 
-          unlockedVariants={activeProfile.eternalUnlocks[activeProfile.heroClass] || []} 
-          selectedVariantId={activeProfile.selectedVariant[activeProfile.heroClass]} 
-          onSelect={handleSelectVariant} 
-          onClose={() => setShowVariants(false)} 
-        />
+        <VariantSelector heroClass={activeProfile.heroClass} unlockedVariants={activeProfile.eternalUnlocks[activeProfile.heroClass] || []} selectedVariantId={activeProfile.selectedVariant[activeProfile.heroClass]} onSelect={handleSelectVariant} onClose={() => setShowVariants(false)} />
       )}
       {tutorialStep !== null && (
         <TutorialOverlay step={tutorialStep} onNext={() => setTutorialStep(s => s! + 1)} onComplete={() => setTutorialStep(null)} />

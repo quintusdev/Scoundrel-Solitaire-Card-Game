@@ -69,9 +69,12 @@ export interface UserProfile {
   currentGame: GameState | null;
   lastGame: RunSummary | null;
   saves: Record<Difficulty, (SignedSave | null)[]>;
-  // Eternal Tier 3 System
-  eternalUnlocks: Record<string, string[]>; // class -> [variantIds]
-  selectedVariant: Record<string, string | null>; // class -> variantId
+  eternalUnlocks: Record<string, string[]>; 
+  selectedVariant: Record<string, string | null>;
+  // Evolutive Chest System
+  progression: {
+    tier: number; // 0, 1, 2, 3
+  };
 }
 
 export interface SessionStats {

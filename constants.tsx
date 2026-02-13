@@ -10,6 +10,50 @@ export const GAME_RULES = {
   GOD_WINS_FOR_ETERNAL: 3,
 };
 
+export interface ChestConfig {
+  icon: string;
+  label: string;
+  glowClass: string;
+  particleColor: string;
+  animation: string;
+  description: string;
+}
+
+export const CHEST_VISUALS: Record<number, ChestConfig> = {
+  0: {
+    icon: "📦",
+    label: "Cassa di Legno",
+    glowClass: "border-slate-800 shadow-none",
+    particleColor: "transparent",
+    animation: "animate-none",
+    description: "Un umile baule per un nuovo avventuriero."
+  },
+  1: {
+    icon: "🧳",
+    label: "Baule di Ferro",
+    glowClass: "border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.2)]",
+    particleColor: "#3b82f6",
+    animation: "chest-pulse-iron",
+    description: "Il metallo protegge i primi successi."
+  },
+  2: {
+    icon: "💰",
+    label: "Scrigno Dorato",
+    glowClass: "border-yellow-500/50 shadow-[0_0_25px_rgba(234,179,8,0.4)]",
+    particleColor: "#eab308",
+    animation: "chest-pulse-gold",
+    description: "Splendente di gloria e vittorie infernali."
+  },
+  3: {
+    icon: "💎",
+    label: "Forziere Eterno",
+    glowClass: "border-cyan-400 god-border-glow shadow-[0_0_40px_rgba(34,211,238,0.6)]",
+    particleColor: "#22d3ee",
+    animation: "chest-pulse-eternal",
+    description: "Un manufatto divino forgiato nell'Abisso."
+  }
+};
+
 export interface EternalVariant {
   id: string;
   name: string;
@@ -192,7 +236,7 @@ export const generatePixelArtSVG = (type: string, value: number, isBroken: boole
     for (let x = 6; x <= 9; x++) addPixel(x, 12, "#d97706");
   } else if (type === "potion") {
     const liqColor = value > 10 ? "#ec4899" : "#10b981";
-    for (let y = 8; y <= 14; y++) {
+    for (let y = 6; y <= 14; y++) {
        for (let x = 6; x <= 9; x++) addPixel(x, y, liqColor);
     }
   }

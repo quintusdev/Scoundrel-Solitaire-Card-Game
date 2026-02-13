@@ -25,6 +25,35 @@
   animation: gold-pulse 2s infinite ease-in-out;
 }
 
+/* Evolutive Chest Animations */
+@keyframes chest-pulse-iron {
+  0% { box-shadow: 0 0 0px rgba(59,130,246,0); }
+  50% { box-shadow: 0 0 20px rgba(59,130,246,0.2); }
+  100% { box-shadow: 0 0 0px rgba(59,130,246,0); }
+}
+
+@keyframes chest-pulse-gold {
+  0% { box-shadow: 0 0 5px rgba(234,179,8,0.2); }
+  50% { box-shadow: 0 0 30px rgba(234,179,8,0.5); }
+  100% { box-shadow: 0 0 5px rgba(234,179,8,0.2); }
+}
+
+@keyframes chest-pulse-eternal {
+  0% { box-shadow: 0 0 10px rgba(34,211,238,0.3); transform: scale(1); }
+  50% { box-shadow: 0 0 40px rgba(34,211,238,0.7); transform: scale(1.02); }
+  100% { box-shadow: 0 0 10px rgba(34,211,238,0.3); transform: scale(1); }
+}
+
+@keyframes float-chest {
+  0%, 100% { transform: translateY(0); opacity: 0; }
+  50% { transform: translateY(-15px); opacity: 0.8; }
+}
+
+.chest-pulse-iron { animation: chest-pulse-iron 3s infinite ease-in-out; }
+.chest-pulse-gold { animation: chest-pulse-gold 2s infinite ease-in-out; }
+.chest-pulse-eternal { animation: chest-pulse-eternal 2s infinite ease-in-out; }
+.animate-float-chest { animation: float-chest 3s infinite ease-in-out; }
+
 @keyframes gold-pulse {
   0%, 100% { filter: brightness(1); }
   50% { filter: brightness(1.5); }
