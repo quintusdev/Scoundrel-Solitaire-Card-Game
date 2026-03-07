@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave, ChronicleEntry, WorldShift, WorldState } from './types';
-import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules, getCardType, ETERNAL_VARIANTS } from './constants';
+import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules, getCardType, ETERNAL_VARIANTS, SIGIL_REWARDS, ALTAR_NODES } from './constants';
 import { SaveManager } from './SaveManager';
 import { ChronicleManager } from './ChronicleManager';
 import { WorldShiftManager } from './WorldShiftManager';
@@ -26,7 +26,18 @@ const EMPTY_STATS: ProfileStats = {
 };
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'profile-selection' | 'difficulty-selection' | 'main-menu' | 'playing'>('profile-selection');
+  const [view, setView] = useState<'profile-selection' | 'difficulty-selection' | 'main-menu' | 'playing'>(() => {
+    const saved = localStorage.getItem(GAME_RULES.PROFILES_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.activeProfileId && parsed.profiles && parsed.profiles[parsed.activeProfileId]) {
+          return 'main-menu';
+        }
+      } catch (e) {}
+    }
+    return 'profile-selection';
+  });
   const [showRules, setShowRules] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showSave, setShowSave] = useState(false);
@@ -34,15 +45,30 @@ const App: React.FC = () => {
   const [showHall, setShowHall] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<number | null>(null);
   const [toasts, setToasts] = useState<{id: number, message: string, kind: string}[]>([]);
-  const [profilesData, setProfilesData] = useState<ProfilesData>({ activeProfileId: null, profiles: {} });
-  const [isBooting, setIsBooting] = useState(false);
+  const [profilesData, setProfilesData] = useState<ProfilesData>(() => {
+    const saved = localStorage.getItem(GAME_RULES.PROFILES_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Restore activeProfileId only if it exists in profiles
+        if (parsed.activeProfileId && (!parsed.profiles || !parsed.profiles[parsed.activeProfileId])) {
+          parsed.activeProfileId = null;
+        }
+        return parsed;
+      } catch (e) {
+        console.error("Error loading profiles:", e);
+      }
+    }
+    return { activeProfileId: null, profiles: {} };
+  });
 
+  const [isBooting, setIsBooting] = useState(false);
   const [isFleeing, setIsFleeing] = useState(false);
   const [gameState, setGameState] = useState<GameState>({
     status: "start", difficulty: "normal", health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
     equippedWeapon: null, weaponDurability: null, deck: [], room: [], selectedCardId: null, fugaDisponibile: true,
     fugaUsataUltimaStanza: false, roomIndex: 0, enemiesDefeated: 0, startTime: 0,
-    sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: GAME_RULES.INITIAL_HEALTH }
+    sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: GAME_RULES.INITIAL_HEALTH, weaponsBroken: 0, lastDurabilityKill: false, roomMonstersCount: 0, acesInRoom: 0, noWeaponKills10Plus: 0, lowHPStreak: 0, maxLowHPStreak: 0 }
   });
 
   const activeProfile = useMemo(() => 
@@ -54,11 +80,6 @@ const App: React.FC = () => {
     setToasts(prev => [...prev, { id, message, kind }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   };
-
-  useEffect(() => {
-    const saved = localStorage.getItem(GAME_RULES.PROFILES_KEY);
-    if (saved) try { setProfilesData(JSON.parse(saved)); } catch (e) { console.error(e); }
-  }, []);
 
   // 7️⃣ SICUREZZA: Verifica firma worldState al boot (attraverso selezione profilo)
   useEffect(() => {
@@ -103,7 +124,7 @@ const App: React.FC = () => {
   };
 
   const handleSelectProfile = (id: string) => {
-    updateActiveProfile({ id });
+    setProfilesData(prev => ({ ...prev, activeProfileId: id }));
     setIsBooting(true);
     setView('main-menu');
   };
@@ -123,8 +144,13 @@ const App: React.FC = () => {
       selectedVariant: { "Guerriero": null, "Ladro": null, "Mago": null, "Paladino": null },
       progression: { tier: 0, paradoxUnlocked: false, paradoxSeen: false },
       eternalHall: [],
-      worldState: WorldShiftManager.createDefaultState()
+      worldState: WorldShiftManager.createDefaultState(),
+      abyssSigils: 0,
+      altarUnlocks: [],
+      currentWinStreak: 0,
+      totalSigilsSpent: 0
     };
+    newProfile.achievements["PROFILE_MILESTONE"] = true;
     setProfilesData(prev => ({ ...prev, profiles: { ...prev.profiles, [id]: newProfile }, activeProfileId: id }));
     setIsBooting(true);
     setView('main-menu');
@@ -150,16 +176,71 @@ const App: React.FC = () => {
       deck: fullDeck.slice(4), room: fullDeck.slice(0, 4), roomIndex: 1,
       selectedCardId: null, fugaDisponibile: true, fugaUsataUltimaStanza: false, enemiesDefeated: 0,
       startTime: Date.now(),
-      sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: initialHP }
+      sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: initialHP, weaponsBroken: 0, lastDurabilityKill: false, roomMonstersCount: 0, acesInRoom: 0, noWeaponKills10Plus: 0, lowHPStreak: 0, maxLowHPStreak: 0 }
     };
     setGameState(newState);
     setView('playing');
+  };
+
+  const handleUnlockAltar = (nodeId: string) => {
+    if (!activeProfile) return;
+    const node = ALTAR_NODES.find(n => n.id === nodeId);
+    if (!node) return;
+    
+    const sigils = activeProfile.abyssSigils || 0;
+    const unlocks = activeProfile.altarUnlocks || [];
+    
+    if (sigils < node.cost) return;
+    if (node.requires && !unlocks.includes(node.requires)) return;
+    if (unlocks.includes(nodeId)) return;
+
+    const updatedProfile = { ...activeProfile };
+    updatedProfile.abyssSigils = sigils - node.cost;
+    updatedProfile.altarUnlocks = [...unlocks, nodeId];
+    updatedProfile.totalSigilsSpent = (updatedProfile.totalSigilsSpent || 0) + node.cost;
+    
+    const unlockAchievement = (p: UserProfile, id: string) => {
+      if (p.achievements[id]) return;
+      p.achievements[id] = true;
+      const ach = ACHIEVEMENTS[id];
+      if (ach) {
+        const reward = SIGIL_REWARDS[ach.rarity] || 0;
+        p.abyssSigils = (p.abyssSigils || 0) + reward;
+        addToast(`Achievement: ${ach.name} (+${reward} Sigilli)`, "success");
+      }
+    };
+
+    unlockAchievement(updatedProfile, "ALTAR_FIRST");
+    if (updatedProfile.totalSigilsSpent >= 50) unlockAchievement(updatedProfile, "SPEND_SIGILS_50");
+    if (updatedProfile.abyssSigils >= 100) unlockAchievement(updatedProfile, "COLLECT_SIGILS_100");
+
+    const branchNodes = ALTAR_NODES.filter(n => n.branch === node.branch);
+    if (branchNodes.every(n => updatedProfile.altarUnlocks.includes(n.id))) {
+      unlockAchievement(updatedProfile, "ALTAR_BRANCH_FULL");
+    }
+    if (ALTAR_NODES.every(n => updatedProfile.altarUnlocks.includes(n.id))) {
+      unlockAchievement(updatedProfile, "ALTAR_ALL_FULL");
+    }
+
+    updateActiveProfile(updatedProfile);
+    addToast(`Potere Sbloccato: ${node.name}`, "success");
   };
 
   const finalizeStats = async (finalState: GameState) => {
     if (!activeProfile) return;
     const diff = finalState.difficulty;
     
+    const unlockAchievement = (p: UserProfile, id: string) => {
+      if (p.achievements[id]) return;
+      p.achievements[id] = true;
+      const ach = ACHIEVEMENTS[id];
+      if (ach) {
+        const reward = SIGIL_REWARDS[ach.rarity] || 0;
+        p.abyssSigils = (p.abyssSigils || 0) + reward;
+        addToast(`Achievement: ${ach.name} (+${reward} Sigilli)`, "success");
+      }
+    };
+
     // 3️⃣ GENERAZIONE SHIFT: Solo dopo vittoria/sconfitta in "The Question"
     if (diff === 'question') {
        if (finalState.status === 'won' || finalState.status === 'lost') {
@@ -188,61 +269,107 @@ const App: React.FC = () => {
     });
 
     if (finalState.status === 'won') {
-      if (diff === 'normal') profile.unlocks.hard = true;
-      if (diff === 'hard') profile.unlocks.inferno = true;
+      profile.currentWinStreak = (profile.currentWinStreak || 0) + 1;
       
-      if (diff === 'inferno' && profile.stats.inferno.wins >= GAME_RULES.INFERNO_WINS_FOR_GOD) {
-        profile.unlocks.god = true;
-        if (!profile.achievements["ABYSS_LORD"]) {
-           profile.achievements["ABYSS_LORD"] = true;
-           addToast("Achievement: Signore dell'Abisso", "success");
-        }
+      // STREAKS
+      if (profile.currentWinStreak >= 3) unlockAchievement(profile, "TRIPLE_WIN");
+      if (profile.currentWinStreak >= 5) unlockAchievement(profile, "STREAK_5");
+      
+      // COMBAT / SURVIVAL
+      if (finalState.health === 1) unlockAchievement(profile, "LOW_HP_WIN");
+      if (finalState.enemiesDefeated >= 50) unlockAchievement(profile, "MONSTER_SLAYER");
+      if (finalState.sessionStats.healingDone < 10) unlockAchievement(profile, "MINIMAL_HEAL");
+      if (finalState.sessionStats.retreatsUsed >= 5) unlockAchievement(profile, "MANY_RETREATS");
+      if (finalState.roomIndex >= 13) unlockAchievement(profile, "DEEP_ROOMS");
+      
+      // WEAPON MASTERY
+      if (finalState.sessionStats.weaponsEquipped >= 10) unlockAchievement(profile, "MANY_WEAPONS");
+      const totalMonsters = finalState.enemiesDefeated;
+      // Approximate check for weapon heavy (this is a bit tricky without full history, but we can use sessionStats)
+      // Let's assume if they defeated many enemies and used weapons, they are weapon heavy.
+      if (finalState.sessionStats.weaponsEquipped > 0 && finalState.enemiesDefeated > 20) {
+         unlockAchievement(profile, "WEAPON_HEAVY");
       }
+      
+      // POTION / RESOURCE PLAY
+      if (finalState.sessionStats.potionsUsed === 0) unlockAchievement(profile, "NO_POTIONS");
+      if (finalState.sessionStats.potionsUsed >= 15) unlockAchievement(profile, "MANY_POTIONS");
+      
+      // FLEE / TACTICAL PLAY
+      if (finalState.sessionStats.retreatsUsed === 0) unlockAchievement(profile, "NEVER_FLEE");
+      
+      // META
+      if (profile.worldState.activeShifts.length >= 3) unlockAchievement(profile, "WORLD_SHIFT_ACTIVE");
 
+      // DIFFICULTY
+      if (diff === 'normal') {
+        profile.unlocks.hard = true;
+        unlockAchievement(profile, "FIRST_WIN");
+        unlockAchievement(profile, "NORMAL_WIN");
+      }
+      if (diff === 'hard') {
+        profile.unlocks.inferno = true;
+        unlockAchievement(profile, "HARD_WIN");
+      }
+      if (diff === 'inferno') {
+        unlockAchievement(profile, "INFERNO_WIN");
+        if (profile.stats.inferno.wins >= GAME_RULES.INFERNO_WINS_FOR_GOD) {
+          profile.unlocks.god = true;
+        }
+        if (profile.currentWinStreak >= 2) unlockAchievement(profile, "INFERNO_STREAK");
+      }
       if (diff === 'god') {
-        const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
-        // 4️⃣ ESPORTAZIONE HALL: Includi world shifts attuali nel salvataggio Hall
-        chronicle.worldShifts = [...profile.worldState.activeShifts];
+        unlockAchievement(profile, "GOD_WIN");
+        if (profile.stats.god.wins >= 3) unlockAchievement(profile, "REPEATED_GOD");
         
+        const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
+        chronicle.worldShifts = [...profile.worldState.activeShifts];
         if (!profile.eternalHall) profile.eternalHall = [];
         profile.eternalHall.unshift(chronicle);
+        unlockAchievement(profile, "HALL_ENTRY");
 
         const classEternal = profile.eternalUnlocks[heroClass] || [];
         if (profile.stats.god.wins >= GAME_RULES.GOD_WINS_FOR_ETERNAL) {
           if (!classEternal.includes('standard')) {
             classEternal.push('standard');
-            profile.achievements["ETERNAL_ASCENSION"] = true;
             addToast(`Tier 3 Sbloccato per ${heroClass}!`, "success");
           }
         }
-        if (finalState.sessionStats.minHealthReached >= finalState.maxHealth / 2) {
-          if (!classEternal.includes('flawless')) classEternal.push('flawless');
-        }
-        if (finalState.sessionStats.potionsUsed === 0) {
-          if (!classEternal.includes('no_potion')) classEternal.push('no_potion');
-        }
-        if (finalState.sessionStats.retreatsUsed === 0) {
-          if (!classEternal.includes('no_retreat')) classEternal.push('no_retreat');
-        }
         profile.eternalUnlocks[heroClass] = classEternal;
       }
-
-      const achId = (diff.toUpperCase() + "_WIN");
-      if (ACHIEVEMENTS[achId] && !profile.achievements[achId]) {
-         profile.achievements[achId] = true;
+      if (diff === 'question') {
+        unlockAchievement(profile, "QUESTION_WIN");
       }
+
+      // SECRET
+      if (finalState.enemiesDefeated === 42) unlockAchievement(profile, "SECRET_42");
+      if (finalState.sessionStats.acesInRoom >= 3) unlockAchievement(profile, "WEIRD_LUCK");
+      if (finalState.sessionStats.roomMonstersCount >= 4) unlockAchievement(profile, "FULL_ROOM_MONSTERS");
+      if (finalState.sessionStats.noWeaponKills10Plus >= 1) unlockAchievement(profile, "EMPTY_HANDS");
+      
+      // WEAPON
+      if (finalState.sessionStats.weaponsBroken >= 5) unlockAchievement(profile, "WEAPON_BREAK");
+      if (finalState.sessionStats.lastDurabilityKill) unlockAchievement(profile, "LOW_DURABILITY");
+
     } else {
+      profile.currentWinStreak = 0;
+      unlockAchievement(profile, "FIRST_LOSS");
+      if (diff === 'normal') {
+        // Keep FIRST_LOSS_NORMAL for compatibility if needed, but we have FIRST_LOSS now
+      }
       if (ChronicleManager.isSignificantFall(finalState)) {
         const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
         if (!profile.eternalHall) profile.eternalHall = [];
         profile.eternalHall.unshift(chronicle);
         addToast("Cronaca di una Caduta Memorabile registrata.", "warning");
+        unlockAchievement(profile, "HALL_ENTRY");
       }
     }
 
     if (!profile.progression.paradoxUnlocked && profile.eternalHall.length === 42 && profile.eternalHall.every(e => e.difficulty === 'god' && e.status === 'won')) {
       profile.progression.paradoxUnlocked = true;
       addToast("Il paradosso si è manifestato...", "info");
+      unlockAchievement(profile, "PARADOX_UNLOCKED");
     }
 
     profile.progression.tier = calculateProgressionTier(profile);
@@ -327,11 +454,21 @@ const App: React.FC = () => {
            if (Math.random() < fragilityChance) {
              next.equippedWeapon = null;
              next.weaponDurability = null;
+             next.sessionStats.weaponsBroken++;
              addToast("L'arma si è dissolta nel paradosso.", "warning");
            }
         } else if (prev.weaponDurability !== null && prev.equippedWeapon) {
           next.weaponDurability = prev.weaponDurability - 1;
-          if (next.weaponDurability <= 0) { next.equippedWeapon = null; next.weaponDurability = null; }
+          if (next.weaponDurability <= 0) { 
+            next.equippedWeapon = null; 
+            next.weaponDurability = null; 
+            next.sessionStats.weaponsBroken++;
+            next.sessionStats.lastDurabilityKill = true;
+          } else {
+            next.sessionStats.lastDurabilityKill = false;
+          }
+        } else if (!prev.equippedWeapon && effectiveCardValue >= 10) {
+          next.sessionStats.noWeaponKills10Plus++;
         }
       } else if (type === "weapon") {
         next.equippedWeapon = card;
@@ -350,11 +487,25 @@ const App: React.FC = () => {
 
       if (next.room.length === 1 && next.deck.length > 0) {
         const deckCopy = [...next.deck];
-        next.room = [...next.room, ...deckCopy.splice(0, 3)];
+        const newCards = deckCopy.splice(0, 3);
+        next.room = [...next.room, ...newCards];
         next.deck = deckCopy;
         next.roomIndex++;
         next.fugaDisponibile = !next.fugaUsataUltimaStanza;
         next.fugaUsataUltimaStanza = false;
+
+        // Track stats for achievements
+        const monstersInRoom = next.room.filter(c => getCardType(c.suit) === 'monster').length;
+        const acesInRoom = next.room.filter(c => c.rank === 'A').length;
+        next.sessionStats.roomMonstersCount = Math.max(next.sessionStats.roomMonstersCount, monstersInRoom);
+        next.sessionStats.acesInRoom = Math.max(next.sessionStats.acesInRoom, acesInRoom);
+
+        if (next.health <= 5) {
+          next.sessionStats.lowHPStreak++;
+          next.sessionStats.maxLowHPStreak = Math.max(next.sessionStats.maxLowHPStreak, next.sessionStats.lowHPStreak);
+        } else {
+          next.sessionStats.lowHPStreak = 0;
+        }
 
         if (next.roomIndex % 10 === 0 && next.difficulty !== 'god' && next.difficulty !== 'question' && activeProfile) {
            handleAutoSave(next);
@@ -377,21 +528,39 @@ const App: React.FC = () => {
     const check = SaveManager.canSave(gameState);
     if (!check.allowed) { addToast(check.reason!, "error"); return; }
     const save = await SaveManager.createSignedSave(gameState, activeProfile!.nickname);
-    if (save) {
-      const updatedSaves = { ...activeProfile!.saves };
+    if (save && activeProfile) {
+      const updatedProfile = { ...activeProfile };
+      const updatedSaves = { ...updatedProfile.saves };
       updatedSaves[gameState.difficulty][slotIdx] = save;
-      updateActiveProfile({ saves: updatedSaves });
+      updatedProfile.saves = updatedSaves;
+      
+      if (!updatedProfile.achievements["FIRST_SAVE"]) {
+        updatedProfile.achievements["FIRST_SAVE"] = true;
+        updatedProfile.abyssSigils = (updatedProfile.abyssSigils || 0) + SIGIL_REWARDS.common;
+        addToast(`Achievement: Memoria del Sangue (+${SIGIL_REWARDS.common} Sigilli)`, "success");
+      }
+      
+      updateActiveProfile(updatedProfile);
       addToast(`Slot ${slotIdx + 1} salvato`, "success");
     }
   };
 
   const handleLoadSave = async (save: SignedSave) => {
     const loadedState = await SaveManager.verifyAndLoadSave(save);
-    if (loadedState) {
+    if (loadedState && activeProfile) {
       setGameState(loadedState);
       setView('playing');
       setShowSave(false);
-      addToast("Salvataggio caricato.", "success");
+      
+      const updatedProfile = { ...activeProfile };
+      if (!updatedProfile.achievements["FIRST_LOAD"]) {
+        updatedProfile.achievements["FIRST_LOAD"] = true;
+        updatedProfile.abyssSigils = (updatedProfile.abyssSigils || 0) + SIGIL_REWARDS.common;
+        updateActiveProfile(updatedProfile);
+        addToast(`Achievement: Ritorno dall'Abisso (+${SIGIL_REWARDS.common} Sigilli)`, "success");
+      } else {
+        addToast("Salvataggio caricato.", "success");
+      }
     } else {
       addToast("Integrità compromessa.", "error");
     }
@@ -409,12 +578,21 @@ const App: React.FC = () => {
   const handleImportChronicle = async (code: string) => {
     const entry = await ChronicleManager.verifyChronicle(code);
     if (entry && activeProfile) {
-      const newHall = [...activeProfile.eternalHall];
+      const updatedProfile = { ...activeProfile };
+      const newHall = [...updatedProfile.eternalHall];
       if (newHall.some(e => e.id === entry.id)) {
         addToast("Questa cronaca è già presente nell'archivio.", "info");
       } else {
         newHall.unshift(entry);
-        updateActiveProfile({ eternalHall: newHall });
+        updatedProfile.eternalHall = newHall;
+        
+        if (!updatedProfile.achievements["CHRONICLE_IMPORT"]) {
+          updatedProfile.achievements["CHRONICLE_IMPORT"] = true;
+          updatedProfile.abyssSigils = (updatedProfile.abyssSigils || 0) + SIGIL_REWARDS.common;
+          addToast(`Achievement: Eco dal Passato (+${SIGIL_REWARDS.common} Sigilli)`, "success");
+        }
+        
+        updateActiveProfile(updatedProfile);
         addToast("Cronaca importata con successo!", "success");
       }
     } else {
@@ -443,7 +621,7 @@ const App: React.FC = () => {
   }, [activeProfile]);
 
   return (
-    <div className={`min-h-dvh w-full flex flex-col relative bg-slate-950 text-slate-50 ${gameState.difficulty === 'question' && activeProfile?.worldState.activeShifts.some(s => s.effectId === 'cosmetic_blue') ? 'cosmetic-blue' : ''}`}>
+    <div className={`h-dvh w-full flex flex-col relative bg-slate-950 text-slate-50 overflow-hidden ${gameState.difficulty === 'question' && activeProfile?.worldState.activeShifts.some(s => s.effectId === 'cosmetic_blue') ? 'cosmetic-blue' : ''}`}>
       <div className="cinematic-vignette" />
       <div className={`global-game-bg`} style={{ backgroundImage: `linear-gradient(to bottom, rgba(2, 6, 23, 0.8), rgba(2, 6, 23, 0.95)), url('${getBackgroundByRoom(gameState.roomIndex)}')` }} />
       
@@ -456,35 +634,39 @@ const App: React.FC = () => {
       )}
 
       {view === 'profile-selection' ? (
-        <ProfileManagerUI profiles={profilesData.profiles} onSelect={handleSelectProfile} onCreate={handleCreateProfile} onDelete={() => {}} onImport={() => {}} onExport={() => {}} />
+        <ProfileManagerUI profiles={profilesData.profiles} onSelect={handleSelectProfile} onCreate={handleCreateProfile} onDelete={(id) => setProfilesData(prev => {
+          const newProfiles = { ...prev.profiles };
+          delete newProfiles[id];
+          return { ...prev, profiles: newProfiles, activeProfileId: prev.activeProfileId === id ? null : prev.activeProfileId };
+        })} onImport={() => {}} onExport={() => {}} />
       ) : view === 'difficulty-selection' ? (
         <DifficultySelector activeProfile={activeProfile!} onSelect={startNewGame} onCancel={() => setView('main-menu')} />
       ) : view === 'main-menu' ? (
-        <div className={`flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in fade-in duration-700 ${isBooting ? 'invisible' : ''}`}>
-           <div className="mb-8 flex flex-col items-center">
+        <div className={`flex-1 flex flex-col items-center justify-center relative z-10 p-4 sm:p-6 text-center animate-in fade-in duration-700 ${isBooting ? 'invisible' : ''}`}>
+           <div className="mb-4 sm:mb-8 flex flex-col items-center">
               <div className="relative group">
-                <img src={activeProfile?.avatar} className={`w-24 h-24 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl mb-4 transition-all duration-500`} />
+                <img src={activeProfile?.avatar} className={`w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl mb-2 sm:mb-4 transition-all duration-500`} />
                 {currentEternalVariant && (
-                  <div className="absolute -bottom-2 -right-2 bg-slate-950 border border-yellow-500/50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-lg animate-bounce">
+                  <div className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 bg-slate-950 border border-yellow-500/50 w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-xl shadow-lg animate-bounce">
                     {currentEternalVariant.icon}
                   </div>
                 )}
               </div>
               <div className="flex flex-col items-center">
-                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
                    {activeProfile?.nickname}
-                   {currentEternalVariant && <span className={`text-[10px] font-black uppercase ${currentEternalVariant.color}`}>{currentEternalVariant.name}</span>}
+                   {currentEternalVariant && <span className={`text-[8px] sm:text-[10px] font-black uppercase ${currentEternalVariant.color}`}>{currentEternalVariant.name}</span>}
                  </h2>
-                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{activeProfile?.heroClass}</p>
+                 <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{activeProfile?.heroClass}</p>
               </div>
 
-              <div className="mt-8 flex flex-col items-center gap-6">
-                 <div className="flex flex-wrap justify-center gap-4">
-                    <button onClick={() => setShowRules(true)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[10px] uppercase tracking-widest">Manuale</button>
-                    <button onClick={() => setShowSave(true)} className="px-6 py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[10px] uppercase tracking-widest">Vault</button>
-                    <button onClick={() => setShowHall(true)} className="px-6 py-3 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-500/20 transition-all text-[10px] uppercase tracking-widest">Hall of Eternal</button>
-                    {activeProfile && Object.values(activeProfile.eternalUnlocks).some(u => u.length > 0) && (
-                      <button onClick={() => setShowVariants(true)} className="px-6 py-3 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[10px] uppercase tracking-widest">Eternal Variants</button>
+              <div className="mt-4 sm:mt-8 flex flex-col items-center gap-3 sm:gap-6">
+                 <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
+                    <button onClick={() => setShowRules(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Manuale</button>
+                    <button onClick={() => setShowSave(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Vault</button>
+                    <button onClick={() => setShowHall(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-500/20 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Hall of Eternal</button>
+                    {activeProfile && Object.values(activeProfile.eternalUnlocks).some((u: string[]) => u.length > 0) && (
+                      <button onClick={() => setShowVariants(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Eternal Variants</button>
                     )}
                  </div>
                  
@@ -495,30 +677,30 @@ const App: React.FC = () => {
               </div>
            </div>
            
-           <h1 className="text-8xl font-black text-red-600 uppercase tracking-tighter mb-10 drop-shadow-2xl">Scoundrel</h1>
+           <h1 className="text-5xl sm:text-8xl font-black text-red-600 uppercase tracking-tighter mb-4 sm:mb-10 drop-shadow-2xl">Scoundrel</h1>
            
-           <div className="flex flex-col gap-4 w-full max-w-xs">
-              <button onClick={() => setView('difficulty-selection')} className="py-5 bg-red-600 text-white font-black rounded-2xl border-b-8 border-red-950 active:translate-y-2 active:border-b-0 transition-all text-xl uppercase italic">Inizia Spedizione</button>
-              <button onClick={() => { updateActiveProfile({ id: null }); setView('profile-selection'); }} className="py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest">Cambia Profilo</button>
+           <div className="flex flex-col gap-2 sm:gap-4 w-full max-w-xs">
+              <button onClick={() => setView('difficulty-selection')} className="py-3 sm:py-5 bg-red-600 text-white font-black rounded-2xl border-b-4 sm:border-b-8 border-red-950 active:translate-y-2 active:border-b-0 transition-all text-lg sm:text-xl uppercase italic">Inizia Spedizione</button>
+              <button onClick={() => { setProfilesData(prev => ({ ...prev, activeProfileId: null })); setView('profile-selection'); }} className="py-2 text-slate-500 font-bold uppercase text-[8px] sm:text-[10px] tracking-widest">Cambia Profilo</button>
            </div>
         </div>
       ) : (gameState.status === 'playing') ? (
-        <div className="flex-1 flex flex-col w-full max-w-6xl mx-auto p-4 z-10">
-          <div className="flex justify-between items-center mb-2">
-             <button disabled={gameState.difficulty === 'god' || gameState.difficulty === 'question'} onClick={() => setShowSave(true)} className="px-4 py-2 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5 disabled:opacity-20">Menu Salvataggio</button>
-             <button onClick={() => { if(window.confirm("Abbandonare?")) setView('main-menu'); }} className="px-4 py-2 bg-red-950/40 rounded-xl text-[8px] uppercase font-black text-red-400 hover:text-white border border-red-500/20">Abbandona</button>
+        <div className="flex-1 flex flex-col w-full max-w-6xl mx-auto p-2 sm:p-4 relative z-10 overflow-hidden">
+          <div className="flex justify-between items-center mb-1 sm:mb-2">
+             <button disabled={gameState.difficulty === 'god' || gameState.difficulty === 'question'} onClick={() => setShowSave(true)} className="px-3 py-1.5 bg-slate-800/80 rounded-xl text-[8px] uppercase font-black text-slate-400 hover:text-white border border-white/5 disabled:opacity-20">Menu Salvataggio</button>
+             <button onClick={() => { if(window.confirm("Abbandonare?")) setView('main-menu'); }} className="px-3 py-1.5 bg-red-950/40 rounded-xl text-[8px] uppercase font-black text-red-400 hover:text-white border border-red-500/20">Abbandona</button>
           </div>
           <HUD state={gameState} eternalVariant={currentEternalVariant} worldShifts={activeProfile?.worldState.activeShifts || []} />
-          <div className="flex-1 flex items-center justify-center min-h-0">
+          <div className="flex-1 flex items-center justify-center min-h-0 py-2">
             <Room cards={gameState.room} selectedId={gameState.selectedCardId} onSelect={(id) => setGameState(p => ({...p, selectedCardId: id === p.selectedCardId ? null : id}))} isExiting={isFleeing} difficulty={gameState.difficulty} activeShifts={activeProfile?.worldState.activeShifts || []} />
           </div>
-          <div className="grid grid-cols-2 gap-6 hud-glass p-6 rounded-[32px]">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6 hud-glass p-3 sm:p-6 rounded-[24px] sm:rounded-[32px] mt-auto">
              <ContextualActionButton state={gameState} onAction={applyAction} />
-             <button disabled={!gameState.fugaDisponibile} onClick={handleFlee} className={`py-5 font-black rounded-2xl uppercase tracking-widest border-b-4 transition-all ${gameState.fugaDisponibile ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-900 text-slate-700 border-slate-950 opacity-50'}`}>Fuggi</button>
+             <button disabled={!gameState.fugaDisponibile} onClick={handleFlee} className={`py-3 sm:py-5 font-black rounded-xl sm:rounded-2xl uppercase tracking-widest border-b-4 transition-all text-xs sm:text-base ${gameState.fugaDisponibile ? 'bg-slate-800 border-slate-900 text-white' : 'bg-slate-900 text-slate-700 border-slate-950 opacity-50'}`}>Fuggi</button>
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center z-10 p-6 text-center animate-in zoom-in duration-500">
+        <div className="flex-1 flex flex-col items-center justify-center relative z-10 p-6 text-center animate-in zoom-in duration-500">
            <h2 className={`text-8xl font-black uppercase mb-6 ${gameState.status === 'won' ? 'text-emerald-500' : 'text-red-500'}`}>{gameState.status === 'won' ? "Trionfo!" : "Eroe Caduto"}</h2>
            <button onClick={() => setView('main-menu')} className="px-12 py-5 bg-slate-800 text-white font-black rounded-2xl hover:bg-slate-700 transition-all uppercase tracking-widest text-lg">Menu Principale</button>
         </div>
@@ -527,7 +709,14 @@ const App: React.FC = () => {
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {showStats && activeProfile && <StatsModal stats={{...activeProfile.stats.general, lastGame: activeProfile.lastGame}} onClose={() => setShowStats(false)} />}
       {showSave && activeProfile && (
-        <SaveModal activeProfile={activeProfile} gameState={gameState} onClose={() => setShowSave(false)} onSave={handleManualSave} onLoad={handleLoadSave} />
+        <SaveModal 
+          activeProfile={activeProfile} 
+          gameState={gameState} 
+          onClose={() => setShowSave(false)} 
+          onSave={handleManualSave} 
+          onLoad={handleLoadSave} 
+          onUnlockAltar={handleUnlockAltar}
+        />
       )}
       {showVariants && activeProfile && (
         <VariantSelector heroClass={activeProfile.heroClass} unlockedVariants={activeProfile.eternalUnlocks[activeProfile.heroClass] || []} selectedVariantId={activeProfile.selectedVariant[activeProfile.heroClass]} onSelect={handleSelectVariant} onClose={() => setShowVariants(false)} />
@@ -558,7 +747,7 @@ const ContextualActionButton: React.FC<{ state: GameState, onAction: () => void 
   
   const type = getCardType(card.suit);
   const blocked = type === 'monster' && !DifficultyRules.canAttack(card.value, weaponVal, state.difficulty);
-  return <button disabled={blocked} onClick={onAction} className={`py-5 ${blocked ? 'bg-red-950/40 text-red-500' : 'bg-red-700 text-white'} border-red-950 font-black rounded-2xl uppercase tracking-widest border-b-4 active:translate-y-1 transition-all`}>{blocked ? 'Troppo Forte' : 'Conferma Azione'}</button>;
+  return <button disabled={blocked} onClick={onAction} className={`py-3 sm:py-5 ${blocked ? 'bg-red-950/40 text-red-500' : 'bg-red-700 text-white'} border-red-950 font-black rounded-xl sm:rounded-2xl uppercase tracking-widest border-b-4 active:translate-y-1 transition-all text-xs sm:text-base`}>{blocked ? 'Troppo Forte' : 'Conferma Azione'}</button>;
 };
 
 export default App;

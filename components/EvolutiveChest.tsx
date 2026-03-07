@@ -24,7 +24,7 @@ const EvolutiveChest: React.FC<EvolutiveChestProps> = ({ tier, onClick }) => {
       <button 
         onClick={handleOpen}
         className={`
-          relative w-28 h-28 rounded-[32px] border-4 flex items-center justify-center transition-all duration-500
+          relative w-20 h-20 sm:w-28 sm:h-28 rounded-[24px] sm:rounded-[32px] border-2 sm:border-4 flex items-center justify-center transition-all duration-500
           ${config.glowClass}
           ${isOpen ? 'scale-110 rotate-3' : 'hover:scale-105 active:scale-95'}
           ${config.animation}

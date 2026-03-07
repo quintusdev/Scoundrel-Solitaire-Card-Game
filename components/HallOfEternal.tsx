@@ -69,7 +69,7 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, worldShifts, 
   const isParadoxActive = isParadox && paradoxSeen;
 
   return (
-    <div className={`fixed inset-0 z-[450] flex items-center justify-center p-4 backdrop-blur-xl animate-in fade-in duration-500 ${isParadoxActive ? 'bg-slate-950/95' : 'bg-black/95'}`}>
+    <div className={`fixed inset-0 z-[450] flex items-center justify-center p-2 sm:p-4 backdrop-blur-xl animate-in fade-in duration-500 ${isParadoxActive ? 'bg-slate-950/95' : 'bg-black/95'}`}>
       
       {/* Paradox Narrative Sequence */}
       {isParadox && !paradoxSeen && paradoxPhase > 0 && (
@@ -103,42 +103,42 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, worldShifts, 
         </div>
       )}
 
-      <div className={`w-full max-w-4xl rounded-[48px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden transition-all duration-700 border-2 ${isParadoxActive ? 'bg-slate-900/40 border-cyan-500/50 shadow-cyan-500/20' : activeTab === 'glory' ? 'bg-slate-900 border-purple-500/30' : activeTab === 'sorrow' ? 'bg-slate-900 border-red-950' : 'bg-slate-900 border-cyan-500/30'}`}>
+      <div className={`w-full max-w-4xl rounded-[32px] sm:rounded-[48px] shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden transition-all duration-700 border-2 ${isParadoxActive ? 'bg-slate-900/40 border-cyan-500/50 shadow-cyan-500/20' : activeTab === 'glory' ? 'bg-slate-900 border-purple-500/30' : activeTab === 'sorrow' ? 'bg-slate-900 border-red-950' : 'bg-slate-900 border-cyan-500/30'}`}>
         
-        <div className={`p-8 border-b flex justify-between items-center ${isParadoxActive ? 'bg-cyan-950/20 border-cyan-500/20' : 'bg-slate-950/50 border-slate-800'}`}>
+        <div className={`p-4 sm:p-8 border-b flex justify-between items-center ${isParadoxActive ? 'bg-cyan-950/20 border-cyan-500/20' : 'bg-slate-950/50 border-slate-800'}`}>
           <div>
-            <h2 className={`text-4xl font-black tracking-tighter uppercase italic transition-colors duration-500 ${isParadoxActive ? 'text-cyan-400' : activeTab === 'glory' ? 'text-white' : activeTab === 'sorrow' ? 'text-red-600' : 'text-cyan-500'}`}>
+            <h2 className={`text-2xl sm:text-4xl font-black tracking-tighter uppercase italic transition-colors duration-500 ${isParadoxActive ? 'text-cyan-400' : activeTab === 'glory' ? 'text-white' : activeTab === 'sorrow' ? 'text-red-600' : 'text-cyan-500'}`}>
               {activeTab === 'world' ? 'World State' : isParadoxActive ? 'Paradox Terminal 42' : 'Hall of Eternal'}
             </h2>
-            <p className={`text-[10px] uppercase font-black tracking-[0.3em] transition-colors duration-500 ${isParadoxActive ? 'text-cyan-600' : activeTab === 'glory' ? 'text-purple-400' : activeTab === 'sorrow' ? 'text-red-950' : 'text-cyan-700'}`}>
+            <p className={`text-[8px] sm:text-[10px] uppercase font-black tracking-[0.3em] transition-colors duration-500 ${isParadoxActive ? 'text-cyan-600' : activeTab === 'glory' ? 'text-purple-400' : activeTab === 'sorrow' ? 'text-red-950' : 'text-cyan-700'}`}>
               {activeTab === 'world' ? 'Anomalie Dimensionali Attive' : isParadoxActive ? 'Database di Sistema Stabilizzato' : activeTab === 'glory' ? 'Cronache della Gloria' : 'Cronache del Dolore'}
             </p>
           </div>
-          <button onClick={onClose} className={`w-12 h-12 flex items-center justify-center rounded-full transition-colors ${isParadoxActive ? 'hover:bg-cyan-900/20 text-cyan-600 hover:text-cyan-400' : 'hover:bg-slate-800 text-slate-500 hover:text-white'}`}>✕</button>
+          <button onClick={onClose} className={`w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full transition-colors ${isParadoxActive ? 'hover:bg-cyan-900/20 text-cyan-600 hover:text-cyan-400' : 'hover:bg-slate-800 text-slate-500 hover:text-white'}`}>✕</button>
         </div>
 
         <div className={`grid grid-cols-3 border-b transition-colors duration-500 ${isParadoxActive ? 'border-cyan-500/20' : 'border-slate-800'}`}>
            <button 
              onClick={() => setActiveTab('glory')}
-             className={`py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'glory' ? (isParadoxActive ? 'bg-cyan-600/10 text-cyan-400 border-b-2 border-cyan-500' : 'bg-purple-600/10 text-white border-b-2 border-purple-500') : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
+             className={`py-4 sm:py-6 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'glory' ? (isParadoxActive ? 'bg-cyan-600/10 text-cyan-400 border-b-2 border-cyan-500' : 'bg-purple-600/10 text-white border-b-2 border-purple-500') : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
            >
              Gloria
            </button>
            <button 
              onClick={() => setActiveTab('sorrow')}
-             className={`py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'sorrow' ? 'bg-red-950/10 text-red-600 border-b-2 border-red-600' : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
+             className={`py-4 sm:py-6 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'sorrow' ? 'bg-red-950/10 text-red-600 border-b-2 border-red-600' : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
            >
              Dolore
            </button>
            <button 
              onClick={() => setActiveTab('world')}
-             className={`py-6 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'world' ? 'bg-cyan-950/10 text-cyan-500 border-b-2 border-cyan-500' : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
+             className={`py-4 sm:py-6 text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'world' ? 'bg-cyan-950/10 text-cyan-500 border-b-2 border-cyan-500' : 'bg-slate-950/20 text-slate-600 hover:text-slate-400'}`}
            >
              World State
            </button>
         </div>
 
-        <div className="p-8 flex-1 overflow-y-auto space-y-4 scrollbar-hide">
+        <div className="p-4 sm:p-8 flex-1 overflow-y-auto space-y-4 scrollbar-hide">
           {activeTab === 'world' ? (
             <div className="space-y-4">
               <div className="flex justify-between items-center px-4 mb-4">
@@ -146,25 +146,25 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, worldShifts, 
                  <span className="text-[10px] font-black text-white bg-slate-800 px-3 py-1 rounded-full uppercase tracking-tighter">{worldShifts.length} / 7</span>
               </div>
               {worldShifts.length === 0 ? (
-                <div className="h-64 flex flex-col items-center justify-center text-center opacity-30">
-                  <span className="text-6xl mb-4">🌍</span>
-                  <p className="text-sm font-bold uppercase tracking-widest text-slate-400">Nessun paradosso stabilizzato.</p>
-                  <p className="text-[10px] mt-2 italic">Completa spedizioni in modalità "The Question" per alterare il mondo.</p>
+                <div className="h-48 sm:h-64 flex flex-col items-center justify-center text-center opacity-30">
+                  <span className="text-4xl sm:text-6xl mb-4">🌍</span>
+                  <p className="text-xs sm:text-sm font-bold uppercase tracking-widest text-slate-400">Nessun paradosso stabilizzato.</p>
+                  <p className="text-[8px] sm:text-[10px] mt-2 italic">Completa spedizioni in modalità "The Question" per alterare il mondo.</p>
                 </div>
               ) : (
                 worldShifts.map((shift) => (
-                  <div key={shift.id} className={`p-6 bg-slate-800/20 border-2 rounded-3xl flex justify-between items-center transition-all ${shift.category === 'hostile' ? 'border-red-950 hover:bg-red-950/10' : shift.category === 'beneficial' ? 'border-emerald-950/20 hover:bg-emerald-950/10' : 'border-cyan-950/20 hover:bg-cyan-950/10'}`}>
+                  <div key={shift.id} className={`p-4 sm:p-6 bg-slate-800/20 border-2 rounded-2xl sm:rounded-3xl flex justify-between items-center transition-all ${shift.category === 'hostile' ? 'border-red-950 hover:bg-red-950/10' : shift.category === 'beneficial' ? 'border-emerald-950/20 hover:bg-emerald-950/10' : 'border-cyan-950/20 hover:bg-cyan-950/10'}`}>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                         <h4 className={`text-xl font-black uppercase tracking-tight ${shift.category === 'hostile' ? 'text-red-500' : shift.category === 'beneficial' ? 'text-emerald-500' : 'text-cyan-500'}`}>{shift.name}</h4>
-                         <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${shift.source === 'local' ? 'text-slate-400 border-slate-700' : 'text-cyan-400 border-cyan-800 animate-pulse'}`}>
+                         <h4 className={`text-lg sm:text-xl font-black uppercase tracking-tight ${shift.category === 'hostile' ? 'text-red-500' : shift.category === 'beneficial' ? 'text-emerald-500' : 'text-cyan-500'}`}>{shift.name}</h4>
+                         <span className={`text-[6px] sm:text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${shift.source === 'local' ? 'text-slate-400 border-slate-700' : 'text-cyan-400 border-cyan-800 animate-pulse'}`}>
                            {shift.source}
                          </span>
                       </div>
-                      <p className="text-xs text-slate-300">{shift.description}</p>
-                      <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest mt-2 block">ID: {shift.id.split('_').pop()} • {new Date(shift.timestamp).toLocaleDateString()}</span>
+                      <p className="text-[10px] sm:text-xs text-slate-300">{shift.description}</p>
+                      <span className="text-[6px] sm:text-[7px] font-black text-slate-500 uppercase tracking-widest mt-2 block">ID: {shift.id.split('_').pop()} • {new Date(shift.timestamp).toLocaleDateString()}</span>
                     </div>
-                    <div className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${shift.category === 'hostile' ? 'text-red-400 border-red-500/20 bg-red-500/5' : shift.category === 'beneficial' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' : 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5'}`}>
+                    <div className={`px-3 sm:px-4 py-1 rounded-full text-[8px] sm:text-[9px] font-black uppercase tracking-widest border ${shift.category === 'hostile' ? 'text-red-400 border-red-500/20 bg-red-500/5' : shift.category === 'beneficial' ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5' : 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5'}`}>
                       {shift.category}
                     </div>
                   </div>
@@ -172,43 +172,43 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, worldShifts, 
               )}
             </div>
           ) : filteredChronicles.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-center opacity-30">
-               <span className={`text-6xl mb-4 transition-transform duration-500 ${isParadoxActive ? 'animate-pulse' : ''}`}>
+            <div className="h-48 sm:h-64 flex flex-col items-center justify-center text-center opacity-30">
+               <span className={`text-4xl sm:text-6xl mb-4 transition-transform duration-500 ${isParadoxActive ? 'animate-pulse' : ''}`}>
                  {isParadoxActive ? '🌀' : activeTab === 'glory' ? '📜' : '🪦'}
                </span>
-               <p className={`text-sm font-bold uppercase tracking-widest ${isParadoxActive ? 'text-cyan-400' : 'text-slate-400'}`}>
+               <p className={`text-xs sm:text-sm font-bold uppercase tracking-widest ${isParadoxActive ? 'text-cyan-400' : 'text-slate-400'}`}>
                  {activeTab === 'glory' ? 'Nessuna gloria registrata.' : 'Nessun fallimento degno di nota.'}
                </p>
             </div>
           ) : (
             filteredChronicles.map((entry) => (
-              <div key={entry.id} className={`group bg-slate-800/20 border rounded-3xl p-6 transition-all flex flex-col md:flex-row justify-between items-center gap-6 ${isParadoxActive ? 'border-cyan-500/20 hover:border-cyan-500/50 hover:bg-cyan-900/10' : activeTab === 'glory' ? 'border-slate-700 hover:border-purple-500/50 hover:bg-slate-800/40' : 'border-red-950 hover:border-red-800 hover:bg-red-950/10'}`}>
-                <div className="flex items-center gap-6 flex-1">
-                   <div className={`w-16 h-16 rounded-2xl bg-slate-900 border flex items-center justify-center text-3xl shadow-lg transition-colors ${isParadoxActive ? 'border-cyan-500/20' : activeTab === 'glory' ? 'border-purple-500/20' : 'border-red-950 opacity-60'}`}>
+              <div key={entry.id} className={`group bg-slate-800/20 border rounded-2xl sm:rounded-3xl p-4 sm:p-6 transition-all flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6 ${isParadoxActive ? 'border-cyan-500/20 hover:border-cyan-500/50 hover:bg-cyan-900/10' : activeTab === 'glory' ? 'border-slate-700 hover:border-purple-500/50 hover:bg-slate-800/40' : 'border-red-950 hover:border-red-800 hover:bg-red-950/10'}`}>
+                <div className="flex items-center gap-4 sm:gap-6 flex-1 w-full">
+                   <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-slate-900 border flex items-center justify-center text-2xl sm:text-3xl shadow-lg transition-colors ${isParadoxActive ? 'border-cyan-500/20' : activeTab === 'glory' ? 'border-purple-500/20' : 'border-red-950 opacity-60'}`}>
                       {entry.p42 ? '✨' : entry.heroClass === 'Guerriero' ? '⚔️' : entry.heroClass === 'Ladro' ? '🗡️' : entry.heroClass === 'Mago' ? '🔮' : '🛡️'}
                    </div>
-                   <div>
-                      <h3 className={`text-xl font-black uppercase tracking-tight transition-colors ${isParadoxActive ? 'text-cyan-300' : activeTab === 'glory' ? 'text-white' : 'text-red-700/80'}`}>{entry.title}</h3>
-                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{entry.heroName} • {entry.heroClass}</p>
-                      <div className="flex gap-2 mt-2">
-                         <span className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${DIFFICULTY_CONFIG[entry.difficulty].color} border-current opacity-40`}>
+                   <div className="flex-1 min-w-0">
+                      <h3 className={`text-lg sm:text-xl font-black uppercase tracking-tight transition-colors truncate ${isParadoxActive ? 'text-cyan-300' : activeTab === 'glory' ? 'text-white' : 'text-red-700/80'}`}>{entry.title}</h3>
+                      <p className="text-[8px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-widest truncate">{entry.heroName} • {entry.heroClass}</p>
+                      <div className="flex gap-2 mt-1 sm:mt-2">
+                         <span className={`text-[6px] sm:text-[7px] font-black uppercase px-2 py-0.5 rounded-full border ${DIFFICULTY_CONFIG[entry.difficulty].color} border-current opacity-40`}>
                            {DIFFICULTY_CONFIG[entry.difficulty].label}
                          </span>
-                         {entry.worldShifts && entry.worldShifts.length > 0 && <span className="text-[7px] font-black uppercase bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full text-cyan-400">🌍 {entry.worldShifts.length} Shifts</span>}
+                         {entry.worldShifts && entry.worldShifts.length > 0 && <span className="text-[6px] sm:text-[7px] font-black uppercase bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 rounded-full text-cyan-400">🌍 {entry.worldShifts.length} Shifts</span>}
                       </div>
                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-center">
+                <div className="grid grid-cols-2 gap-4 text-center w-full md:w-auto">
                    <div>
-                      <span className="block text-[8px] uppercase font-black text-slate-600">Area</span>
-                      <span className={`text-lg font-black transition-colors ${isParadoxActive ? 'text-cyan-300' : activeTab === 'glory' ? 'text-white' : 'text-red-950'}`}>{entry.rooms}</span>
+                      <span className="block text-[7px] sm:text-[8px] uppercase font-black text-slate-600">Area</span>
+                      <span className={`text-base sm:text-lg font-black transition-colors ${isParadoxActive ? 'text-cyan-300' : activeTab === 'glory' ? 'text-white' : 'text-red-950'}`}>{entry.rooms}</span>
                    </div>
                 </div>
 
                 <button 
                   onClick={() => handleShare(entry)}
-                  className={`px-6 py-3 border rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${isParadoxActive ? 'bg-cyan-900/20 text-cyan-400 border-cyan-500/20 hover:bg-cyan-600 hover:text-white' : activeTab === 'glory' ? 'bg-purple-900/20 text-purple-400 border-purple-500/20 hover:bg-purple-800' : 'bg-red-950/20 text-red-900 border-red-950/40 hover:bg-red-900 hover:text-white'}`}
+                  className={`w-full md:w-auto px-6 py-2 sm:py-3 border rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest transition-all ${isParadoxActive ? 'bg-cyan-900/20 text-cyan-400 border-cyan-500/20 hover:bg-cyan-600 hover:text-white' : activeTab === 'glory' ? 'bg-purple-900/20 text-purple-400 border-purple-500/20 hover:bg-purple-800' : 'bg-red-950/20 text-red-900 border-red-950/40 hover:bg-red-900 hover:text-white'}`}
                 >
                   Condividi
                 </button>
@@ -217,18 +217,18 @@ const HallOfEternal: React.FC<HallOfEternalProps> = ({ chronicles, worldShifts, 
           )}
         </div>
 
-        <div className={`p-8 border-t transition-colors duration-500 bg-slate-950/50 space-y-4 ${isParadoxActive ? 'border-cyan-500/20' : 'border-slate-800'}`}>
-          <div className="flex gap-4">
+        <div className={`p-4 sm:p-8 border-t transition-colors duration-500 bg-slate-950/50 space-y-4 ${isParadoxActive ? 'border-cyan-500/20' : 'border-slate-800'}`}>
+          <div className="flex gap-2 sm:gap-4">
              <input 
                type="text" 
-               placeholder="INCOLLA CODICE PER IMPORTARE..." 
-               className={`flex-1 bg-slate-900 border rounded-xl px-4 py-3 text-[10px] font-bold text-white uppercase outline-none transition-colors ${isParadoxActive ? 'border-cyan-500/30 focus:border-cyan-400' : 'border-slate-700 focus:border-purple-500'}`}
+               placeholder="INCOLLA CODICE..." 
+               className={`flex-1 bg-slate-900 border rounded-xl px-3 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[10px] font-bold text-white uppercase outline-none transition-colors ${isParadoxActive ? 'border-cyan-500/30 focus:border-cyan-400' : 'border-slate-700 focus:border-purple-500'}`}
                value={importCode}
                onChange={(e) => setImportCode(e.target.value)}
              />
              <button 
                onClick={handleProcessImport}
-               className={`px-8 py-3 font-black rounded-xl text-[10px] uppercase tracking-widest transition-all ${isParadoxActive ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400' : 'bg-white text-slate-950 hover:bg-slate-200'}`}
+               className={`px-4 sm:px-8 py-2 sm:py-3 font-black rounded-xl text-[8px] sm:text-[10px] uppercase tracking-widest transition-all ${isParadoxActive ? 'bg-cyan-500 text-slate-950 hover:bg-cyan-400' : 'bg-white text-slate-950 hover:bg-slate-200'}`}
              >
                Importa
              </button>

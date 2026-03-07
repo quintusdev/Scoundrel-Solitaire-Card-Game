@@ -34,7 +34,7 @@
 @keyframes grow-line {
   0% { width: 0; opacity: 0; }
   20% { opacity: 1; }
-  100% { width: 300px; opacity: 1; }
+  100% { width: min(300px, 80vw); opacity: 1; }
 }
 
 @keyframes boot-iron {

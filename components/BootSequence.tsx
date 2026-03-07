@@ -24,7 +24,7 @@ const BootSequence: React.FC<BootSequenceProps> = ({ tier, onComplete }) => {
   }, [onComplete]);
 
   return (
-    <div className={`fixed inset-0 z-[1000] flex flex-col items-center justify-center ${config.overlayClass} transition-opacity duration-300 ${phase === 'finish' ? 'opacity-0' : 'opacity-100'}`}>
+    <div className={`fixed inset-0 z-[1000] flex flex-col items-center justify-center ${config.overlayClass} transition-opacity duration-300 ${phase === 'finish' ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
       
       <div className={`flex flex-col items-center gap-8 ${config.effectClass}`}>
         

@@ -18,7 +18,7 @@ const ProfileManagerUI: React.FC<ProfileManagerUIProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({ name: '', nickname: '', heroClass: HERO_CLASSES[0], avatar: AVATARS[0] });
 
-  const profileList = Object.values(profiles);
+  const profileList: UserProfile[] = Object.values(profiles);
   const slots = [0, 1, 2]; // Max 3 profili
 
   const handleImportClick = () => {
@@ -38,7 +38,7 @@ const ProfileManagerUI: React.FC<ProfileManagerUIProps> = ({
 
   if (isCreating) {
     return (
-      <div className="h-screen w-full flex items-center justify-center p-6 bg-slate-950 font-sans text-slate-50">
+      <div className="h-screen w-full flex items-center justify-center p-6 bg-slate-950 font-sans text-slate-50 relative z-10">
         <div className="w-full max-w-md bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl animate-in zoom-in duration-300">
           <h2 className="text-3xl font-black uppercase text-white mb-6 text-center tracking-tighter">Crea Eroe</h2>
           
@@ -99,42 +99,41 @@ const ProfileManagerUI: React.FC<ProfileManagerUIProps> = ({
   }
 
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-center p-6 bg-slate-950 font-sans text-slate-50 relative overflow-hidden">
+    <div className="h-dvh w-full flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-950 font-sans text-slate-50 relative overflow-hidden z-10">
       <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/pixel-weave.png')]" />
       
-      <div className="z-10 w-full max-w-4xl">
-        <h1 className="text-4xl md:text-6xl font-black text-white text-center uppercase tracking-tighter mb-2">Selezione Profilo</h1>
-        <p className="text-slate-500 text-center font-bold uppercase text-[10px] tracking-[0.3em] mb-12">Scegli il tuo destino, Scoundrel</p>
+      <div className="z-10 w-full max-w-4xl flex flex-col items-center">
+        <h1 className="text-3xl md:text-6xl font-black text-white text-center uppercase tracking-tighter mb-1 sm:mb-2">Selezione Profilo</h1>
+        <p className="text-slate-500 text-center font-bold uppercase text-[8px] sm:text-[10px] tracking-[0.3em] mb-4 sm:mb-12">Scegli il tuo destino, Scoundrel</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 w-full">
           {slots.map(index => {
             const p = profileList[index];
             if (p) {
               return (
-                <div key={p.id} className="group relative flex flex-col bg-slate-900 border border-slate-800 p-6 rounded-3xl transition-all hover:border-blue-500 hover:-translate-y-2 shadow-xl">
-                  <div className="flex items-center gap-4 mb-4">
-                    <img src={p.avatar} alt="Av" className="w-12 h-12 rounded-full border-2 border-slate-800" />
+                <div key={p.id} className="group relative flex flex-col bg-slate-900 border border-slate-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl transition-all hover:border-blue-500 hover:-translate-y-1 sm:hover:-translate-y-2 shadow-xl">
+                  <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
+                    <img src={p.avatar} alt="Av" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-slate-800" />
                     <div>
-                      <h3 className="font-black text-white uppercase tracking-tight truncate w-32">{p.nickname}</h3>
-                      <p className="text-[9px] font-bold text-slate-500 uppercase">{p.heroClass}</p>
+                      <h3 className="font-black text-white uppercase tracking-tight truncate w-24 sm:w-32 text-sm sm:text-base">{p.nickname}</h3>
+                      <p className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase">{p.heroClass}</p>
                     </div>
                   </div>
                   
-                  <div className="space-y-2 mb-6">
-                    <div className="flex justify-between items-end text-[9px] uppercase font-black text-slate-600">
+                  <div className="space-y-1 sm:space-y-2 mb-4 sm:mb-6">
+                    <div className="flex justify-between items-end text-[8px] sm:text-[9px] uppercase font-black text-slate-600">
                       <span>Stanze Max</span>
-                      {/* Fixed access: accessing bestRun from general stats category */}
                       <span className="text-white text-xs">{p.stats.general.bestRun.rooms}</span>
                     </div>
-                    <div className="flex justify-between items-end text-[9px] uppercase font-black text-slate-600">
+                    <div className="flex justify-between items-end text-[8px] sm:text-[9px] uppercase font-black text-slate-600">
                       <span>Attività</span>
-                      <span className="text-white">{p.lastActivity}</span>
+                      <span className="text-white text-[8px] sm:text-xs">{p.lastActivity}</span>
                     </div>
                   </div>
 
                   <button 
                     onClick={() => onSelect(p.id)}
-                    className="w-full py-3 bg-blue-600 text-white font-black rounded-xl uppercase text-[10px] tracking-widest mb-2"
+                    className="w-full py-2 sm:py-3 bg-blue-600 text-white font-black rounded-xl uppercase text-[9px] sm:text-[10px] tracking-widest mb-2"
                   >
                     Seleziona
                   </button>
@@ -171,10 +170,10 @@ const ProfileManagerUI: React.FC<ProfileManagerUIProps> = ({
           })}
         </div>
 
-        <div className="mt-12 flex justify-center">
+        <div className="mt-6 sm:mt-12 flex justify-center">
           <button 
             onClick={handleImportClick}
-            className="flex items-center gap-2 px-6 py-3 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:text-white hover:border-slate-500 transition-all"
+            className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-slate-900 border border-slate-800 rounded-xl text-[8px] sm:text-[10px] font-black uppercase text-slate-500 hover:text-white hover:border-slate-500 transition-all"
           >
             <span>📥</span> Importa Profilo (.json)
           </button>

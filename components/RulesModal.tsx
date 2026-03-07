@@ -10,6 +10,7 @@ const TABS = {
     { id: "modes", label: "Difficoltà" },
     { id: "vault", label: "Vault" },
     { id: "progression", label: "Evoluzione" },
+    { id: "altar", label: "Altare" },
     { id: "universe", label: "Universo" }
   ],
   EN: [
@@ -18,6 +19,7 @@ const TABS = {
     { id: "modes", label: "Difficulty" },
     { id: "vault", label: "Vault" },
     { id: "progression", label: "Evolution" },
+    { id: "altar", label: "Altar" },
     { id: "universe", label: "Universe" }
   ]
 };
@@ -141,12 +143,35 @@ const RulesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <p className="text-[10px] text-slate-400">Rappresentati da forzieri nel menu principale, i Tier mostrano il tuo grado di maestria complessiva.</p>
               </div>
               <div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-700">
-                <p className="text-xs font-black text-white uppercase mb-1">Varianti Eterne</p>
-                <p className="text-[10px] text-slate-400">Skin e aspetti evolutivi sbloccabili tramite imprese specifiche nelle modalità più difficili.</p>
+                <p className="text-xs font-black text-white uppercase mb-1">Sigilli dell'Abisso</p>
+                <p className="text-[10px] text-slate-400">Ottenuti sbloccando Obiettivi. Sono la valuta necessaria per l'Altare dell'Abisso.</p>
               </div>
               <div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-700">
                 <p className="text-xs font-black text-white uppercase mb-1">Hall of Eternal</p>
                 <p className="text-[10px] text-slate-400">Un archivio persistente che conserva le tue vittorie gloriose e le tue cadute più memorabili.</p>
+              </div>
+            </div>
+          </div>
+        );
+      case "altar":
+        return (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <h3 className="text-xl font-black text-cyan-400 uppercase tracking-tighter italic">Altare dell'Abisso</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              L'Altare permette di sbloccare potenziamenti permanenti per il tuo profilo sacrificando i Sigilli dell'Abisso.
+            </p>
+            <div className="space-y-4">
+              <div className="p-4 bg-red-950/20 border border-red-900/30 rounded-2xl">
+                <p className="text-xs font-black text-red-400 uppercase mb-1">Ramo del Sangue</p>
+                <p className="text-[10px] text-slate-300">Focalizzato sulla sopravvivenza, la cura e l'incremento dei punti vita massimi.</p>
+              </div>
+              <div className="p-4 bg-blue-950/20 border border-blue-900/30 rounded-2xl">
+                <p className="text-xs font-black text-blue-400 uppercase mb-1">Ramo dell'Acciaio</p>
+                <p className="text-[10px] text-slate-300">Migliora l'efficacia delle armi, il danno e la loro durabilità nel dungeon.</p>
+              </div>
+              <div className="p-4 bg-slate-800/40 border border-slate-700 rounded-2xl">
+                <p className="text-xs font-black text-slate-300 uppercase mb-1">Ramo dell'Ombra</p>
+                <p className="text-[10px] text-slate-300">Specializzato nell'evasione, la manipolazione del mazzo e la conoscenza occulta.</p>
               </div>
             </div>
           </div>
@@ -287,12 +312,35 @@ const RulesModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 <p className="text-[10px] text-slate-400">Represented by chests in the main menu, Tiers show your overall degree of mastery.</p>
               </div>
               <div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-700">
-                <p className="text-xs font-black text-white uppercase mb-1">Eternal Variants</p>
-                <p className="text-[10px] text-slate-400">Skins and evolutionary aspects unlockable through specific feats in the most difficult modes.</p>
+                <p className="text-xs font-black text-white uppercase mb-1">Abyss Sigils</p>
+                <p className="text-[10px] text-slate-400">Earned by unlocking Achievements. They are the currency required for the Altar of the Abyss.</p>
               </div>
               <div className="p-4 bg-slate-800/30 rounded-2xl border border-slate-700">
                 <p className="text-xs font-black text-white uppercase mb-1">Hall of Eternal</p>
                 <p className="text-[10px] text-slate-400">A persistent archive that preserves your glorious victories and your most memorable falls.</p>
+              </div>
+            </div>
+          </div>
+        );
+      case "altar":
+        return (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <h3 className="text-xl font-black text-cyan-400 uppercase tracking-tighter italic">Altar of the Abyss</h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              The Altar allows you to unlock permanent upgrades for your profile by sacrificing Abyss Sigils.
+            </p>
+            <div className="space-y-4">
+              <div className="p-4 bg-red-950/20 border border-red-900/30 rounded-2xl">
+                <p className="text-xs font-black text-red-400 uppercase mb-1">Blood Branch</p>
+                <p className="text-[10px] text-slate-300">Focused on survival, healing, and increasing maximum health points.</p>
+              </div>
+              <div className="p-4 bg-blue-950/20 border border-blue-900/30 rounded-2xl">
+                <p className="text-xs font-black text-blue-400 uppercase mb-1">Steel Branch</p>
+                <p className="text-[10px] text-slate-300">Improves weapon effectiveness, damage, and their durability in the dungeon.</p>
+              </div>
+              <div className="p-4 bg-slate-800/40 border border-slate-700 rounded-2xl">
+                <p className="text-xs font-black text-slate-300 uppercase mb-1">Shadow Branch</p>
+                <p className="text-[10px] text-slate-300">Specialized in evasion, deck manipulation, and occult knowledge.</p>
               </div>
             </div>
           </div>

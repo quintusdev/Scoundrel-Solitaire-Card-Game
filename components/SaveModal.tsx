@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { UserProfile, GameState, SignedSave, Difficulty } from '../types';
 import { DIFFICULTY_CONFIG } from '../constants';
+import AchievementsPanel from './AchievementsPanel';
+import AltarOfAbyss from './AltarOfAbyss';
 
 interface SaveModalProps {
   activeProfile: UserProfile;
@@ -9,9 +11,11 @@ interface SaveModalProps {
   onClose: () => void;
   onSave: (slotIdx: number) => void;
   onLoad: (save: SignedSave) => void;
+  onUnlockAltar: (nodeId: string) => void;
 }
 
-const SaveModal: React.FC<SaveModalProps> = ({ activeProfile, gameState, onClose, onSave, onLoad }) => {
+const SaveModal: React.FC<SaveModalProps> = ({ activeProfile, gameState, onClose, onSave, onLoad, onUnlockAltar }) => {
+  const [tab, setTab] = useState<'saves' | 'achievements' | 'altar'>('saves');
   const isPlaying = gameState.status === 'playing';
   const isGod = gameState.difficulty === 'god';
   const combatLock = gameState.selectedCardId !== null;
@@ -20,55 +24,82 @@ const SaveModal: React.FC<SaveModalProps> = ({ activeProfile, gameState, onClose
 
   return (
     <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl rounded-[40px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-5xl rounded-[40px] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
         <div className="p-8 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
           <div>
             <h2 className="text-3xl font-black tracking-tighter text-white uppercase italic">Scoundrel Vault</h2>
             <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest">Protocollo Persistenza Eroe: {activeProfile.nickname}</p>
           </div>
+          <div className="flex bg-slate-900 p-1 rounded-2xl border border-slate-800">
+            <button 
+              onClick={() => setTab('saves')}
+              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'saves' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              Salvataggi
+            </button>
+            <button 
+              onClick={() => setTab('achievements')}
+              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'achievements' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              Obiettivi
+            </button>
+            <button 
+              onClick={() => setTab('altar')}
+              className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tab === 'altar' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              Altare
+            </button>
+          </div>
           <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
 
         <div className="p-8 flex-1 overflow-y-auto space-y-10 scrollbar-hide">
-          {isPlaying && (
-             <div className="bg-blue-900/20 border-2 border-blue-500/20 p-6 rounded-3xl flex items-center justify-between">
-                <div>
-                   <span className="text-xs font-black text-blue-400 uppercase tracking-widest block mb-1">Sessione Corrente</span>
-                   <p className="text-sm font-medium text-slate-300">Salva i progressi della tua spedizione attuale.</p>
-                   {isGod && <p className="text-[10px] text-red-500 font-bold uppercase mt-2">⚠️ Salvataggio disabilitato in GOD MODE.</p>}
-                   {combatLock && !isGod && <p className="text-[10px] text-yellow-500 font-bold uppercase mt-2">⚠️ Impossibile salvare durante un'azione.</p>}
+          {tab === 'saves' && (
+            <>
+              {isPlaying && (
+                <div className="bg-blue-900/20 border-2 border-blue-500/20 p-6 rounded-3xl flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-black text-blue-400 uppercase tracking-widest block mb-1">Sessione Corrente</span>
+                      <p className="text-sm font-medium text-slate-300">Salva i progressi della tua spedizione attuale.</p>
+                      {isGod && <p className="text-[10px] text-red-500 font-bold uppercase mt-2">⚠️ Salvataggio disabilitato in GOD MODE.</p>}
+                      {combatLock && !isGod && <p className="text-[10px] text-yellow-500 font-bold uppercase mt-2">⚠️ Impossibile salvare durante un'azione.</p>}
+                    </div>
+                    <div className="flex gap-2">
+                      {[0, 1].map(i => (
+                        <button 
+                          key={i}
+                          disabled={isGod || combatLock}
+                          onClick={() => onSave(i)}
+                          className="px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:opacity-50 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                        >
+                          Slot {i + 1}
+                        </button>
+                      ))}
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                   {[0, 1].map(i => (
-                     <button 
-                       key={i}
-                       disabled={isGod || combatLock}
-                       onClick={() => onSave(i)}
-                       className="px-6 py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:opacity-50 text-white font-black rounded-xl text-[10px] uppercase tracking-widest transition-all active:scale-95"
-                     >
-                       Slot {i + 1}
-                     </button>
-                   ))}
+              )}
+
+              <div className="space-y-6">
+                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] pl-2 border-l-2 border-slate-700">Archivio Spedizioni</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {DIFFICULTIES.map(diff => (
+                    activeProfile.saves[diff].map((save, idx) => (
+                      <SaveSlotCard 
+                        key={`${diff}-${idx}`} 
+                        save={save} 
+                        difficulty={diff} 
+                        slotIdx={idx} 
+                        onLoad={onLoad} 
+                      />
+                    ))
+                  ))}
                 </div>
-             </div>
+              </div>
+            </>
           )}
 
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-[0.3em] pl-2 border-l-2 border-slate-700">Archivio Spedizioni</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-               {DIFFICULTIES.map(diff => (
-                 activeProfile.saves[diff].map((save, idx) => (
-                   <SaveSlotCard 
-                     key={`${diff}-${idx}`} 
-                     save={save} 
-                     difficulty={diff} 
-                     slotIdx={idx} 
-                     onLoad={onLoad} 
-                   />
-                 ))
-               ))}
-            </div>
-          </div>
+          {tab === 'achievements' && <AchievementsPanel profile={activeProfile} />}
+          {tab === 'altar' && <AltarOfAbyss profile={activeProfile} onUnlock={onUnlockAltar} />}
         </div>
 
         <div className="p-6 border-t border-slate-800 text-center bg-slate-950/50">

@@ -15,8 +15,8 @@ const DifficultySelector: React.FC<Props> = ({ activeProfile, onSelect, onCancel
   const godRequirement = `Vinci ${GAME_RULES.INFERNO_WINS_FOR_GOD} volte in Inferno (Attuali: ${infernoWins})`;
 
   return (
-    <div className="h-screen w-full flex items-center justify-center p-6 bg-slate-950 z-50 overflow-y-auto">
-      <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 p-8 rounded-[48px] shadow-2xl animate-in zoom-in duration-300">
+    <div className="min-h-screen w-full flex items-center justify-center p-8 bg-slate-950 z-50">
+      <div className="w-full max-w-3xl bg-slate-900 border border-slate-800 p-10 rounded-[48px] shadow-2xl animate-in zoom-in duration-300">
         <h2 className="text-5xl font-black text-white uppercase text-center mb-2 tracking-tighter italic">Scegli il tuo Destino</h2>
         <p className="text-slate-500 text-center text-xs font-bold uppercase tracking-widest mb-10">L'abisso osserva i tuoi progressi</p>
 

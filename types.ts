@@ -1,4 +1,16 @@
 
+export type AchievementRarity = 'common' | 'rare' | 'epic' | 'god';
+
+export interface Achievement {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  rarity: AchievementRarity;
+  category: string;
+  hidden: boolean;
+}
+
 export type Suit = "Cuori" | "Quadri" | "Fiori" | "Picche";
 export type ActionType = "PRIMARY_ACTION" | "FUGA";
 export type GameStatus = "start" | "playing" | "won" | "lost";
@@ -118,6 +130,22 @@ export interface UserProfile {
   };
   eternalHall: ChronicleEntry[];
   worldState: WorldState;
+  abyssSigils: number;
+  altarUnlocks: string[];
+  currentWinStreak: number;
+  totalSigilsSpent: number;
+}
+
+export interface AltarNode {
+  id: string;
+  name: string;
+  description: string;
+  branch: 'blood' | 'steel' | 'shadow';
+  cost: number;
+  tier: number;
+  requires: string | null;
+  type: 'passive' | 'active';
+  effectId: string;
 }
 
 export interface SessionStats {
@@ -129,6 +157,13 @@ export interface SessionStats {
   potionsUsed: number;
   retreatsUsed: number;
   minHealthReached: number;
+  weaponsBroken: number;
+  lastDurabilityKill: boolean;
+  roomMonstersCount: number;
+  acesInRoom: number;
+  noWeaponKills10Plus: number;
+  lowHPStreak: number;
+  maxLowHPStreak: number;
 }
 
 export interface GameState {

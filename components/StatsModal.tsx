@@ -21,42 +21,42 @@ const StatsModal: React.FC<StatsModalProps> = ({ stats, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/85 modal-backdrop" role="dialog" aria-modal="true">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in duration-300">
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-          <h2 className="text-2xl title-font font-black tracking-widest text-white uppercase">Archivio Eroe</h2>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-black/85 modal-backdrop" role="dialog" aria-modal="true">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-in zoom-in duration-300">
+        <div className="p-4 sm:p-6 border-b border-slate-800 flex justify-between items-center">
+          <h2 className="text-xl sm:text-2xl title-font font-black tracking-widest text-white uppercase">Archivio Eroe</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-800 text-slate-500 hover:text-white transition-colors">✕</button>
         </div>
 
-        <div className="p-8 flex-1 overflow-y-auto space-y-8 scrollbar-hide">
+        <div className="p-4 sm:p-8 flex-1 overflow-y-auto space-y-6 sm:space-y-8 scrollbar-hide">
           {/* Ultima Partita Section */}
           <section>
             <h3 className="text-xs font-black uppercase text-slate-500 tracking-widest mb-4">Record: Ultima Incursione</h3>
             {stats.lastGame ? (
-              <div className={`p-6 rounded-2xl border ${stats.lastGame.status === 'won' ? 'bg-emerald-950/20 border-emerald-500/50' : 'bg-red-950/20 border-red-500/50'} relative overflow-hidden`}>
+              <div className={`p-4 sm:p-6 rounded-2xl border ${stats.lastGame.status === 'won' ? 'bg-emerald-950/20 border-emerald-500/50' : 'bg-red-950/20 border-red-500/50'} relative overflow-hidden`}>
                 <div className="flex justify-between items-center relative z-10">
                   <div>
-                    <span className={`text-4xl font-black uppercase title-font ${stats.lastGame.status === 'won' ? 'text-emerald-400' : 'text-red-500'}`}>
+                    <span className={`text-2xl sm:text-4xl font-black uppercase title-font ${stats.lastGame.status === 'won' ? 'text-emerald-400' : 'text-red-500'}`}>
                       {stats.lastGame.status === 'won' ? 'Vittoria' : 'Sconfitta'}
                     </span>
-                    <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tighter">
+                    <p className="text-[8px] sm:text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-tighter">
                       {new Date(stats.lastGame.timestamp).toLocaleString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="block text-2xl font-black text-white">{stats.lastGame.rooms}</span>
-                    <span className="text-[10px] uppercase text-slate-500 font-black">Stanze Raggiunte</span>
+                    <span className="block text-xl sm:text-2xl font-black text-white">{stats.lastGame.rooms}</span>
+                    <span className="text-[8px] sm:text-[10px] uppercase text-slate-500 font-black">Stanze</span>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 mt-6 relative z-10">
-                  <div className="bg-black/40 p-3 rounded-xl border border-white/5">
-                    <span className="block text-[8px] uppercase text-slate-500 font-black">Durata</span>
-                    <span className="text-sm font-bold text-slate-200">{formatTime(stats.lastGame.duration)}</span>
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-4 sm:mt-6 relative z-10">
+                  <div className="bg-black/40 p-2 sm:p-3 rounded-xl border border-white/5">
+                    <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black">Durata</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-200">{formatTime(stats.lastGame.duration)}</span>
                   </div>
-                  <div className="bg-black/40 p-3 rounded-xl border border-white/5">
-                    <span className="block text-[8px] uppercase text-slate-500 font-black">Nemici Abbattuti</span>
-                    <span className="text-sm font-bold text-slate-200">{stats.lastGame.enemies}</span>
+                  <div className="bg-black/40 p-2 sm:p-3 rounded-xl border border-white/5">
+                    <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black">Nemici</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-200">{stats.lastGame.enemies}</span>
                   </div>
                 </div>
 
@@ -74,19 +74,19 @@ const StatsModal: React.FC<StatsModalProps> = ({ stats, onClose }) => {
 
           {/* Global Stats Grid */}
           <section>
-            <h3 className="text-xs font-black uppercase text-slate-500 tracking-widest mb-4">Statistiche Globali</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-4">Statistiche Globali</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               {[
                 { label: "Partite", value: stats.totalGames, color: "text-white" },
                 { label: "Vittorie", value: stats.wins, color: "text-emerald-400" },
                 { label: "Sconfitte", value: stats.losses, color: "text-red-400" },
-                { label: "Stanze Totali", value: stats.totalRoomsCleared, color: "text-blue-400" },
-                { label: "Danno Subito", value: stats.totalDamageTaken, color: "text-orange-500" },
-                { label: "Cura Totale", value: stats.totalHealingDone, color: "text-emerald-500" },
+                { label: "Stanze", value: stats.totalRoomsCleared, color: "text-blue-400" },
+                { label: "Danno", value: stats.totalDamageTaken, color: "text-orange-500" },
+                { label: "Cura", value: stats.totalHealingDone, color: "text-emerald-500" },
               ].map((s, i) => (
-                <div key={i} className="bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
-                  <span className="block text-[8px] uppercase text-slate-500 font-black mb-1">{s.label}</span>
-                  <span className={`text-xl font-black ${s.color}`}>{s.value}</span>
+                <div key={i} className="bg-slate-800/40 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-700/50">
+                  <span className="block text-[7px] sm:text-[8px] uppercase text-slate-500 font-black mb-1">{s.label}</span>
+                  <span className={`text-lg sm:text-xl font-black ${s.color}`}>{s.value}</span>
                 </div>
               ))}
             </div>
@@ -111,8 +111,8 @@ const StatsModal: React.FC<StatsModalProps> = ({ stats, onClose }) => {
           </section>
         </div>
 
-        <div className="p-6 border-t border-slate-800 bg-slate-900/50">
-          <button onClick={onClose} className="w-full py-4 bg-white text-slate-950 font-black rounded-xl hover:bg-slate-200 transition-all text-xs uppercase tracking-widest shadow-xl">Torna al Menu</button>
+        <div className="p-4 sm:p-6 border-t border-slate-800 bg-slate-900/50">
+          <button onClick={onClose} className="w-full py-3 sm:py-4 bg-white text-slate-950 font-black rounded-xl hover:bg-slate-200 transition-all text-[10px] sm:text-xs uppercase tracking-widest shadow-xl">Torna al Menu</button>
         </div>
       </div>
     </div>
