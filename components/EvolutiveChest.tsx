@@ -20,15 +20,15 @@ const EvolutiveChest: React.FC<EvolutiveChestProps> = ({ tier, onClick }) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 bg-slate-900/20 p-4 sm:p-6 rounded-[32px] border border-white/5 backdrop-blur-sm">
       <button 
         onClick={handleOpen}
         className={`
-          relative w-20 h-20 sm:w-28 sm:h-28 rounded-[24px] sm:rounded-[32px] border-2 sm:border-4 flex items-center justify-center transition-all duration-500
+          relative w-20 h-20 sm:w-32 sm:h-32 rounded-[24px] sm:rounded-[32px] border-2 sm:border-4 flex items-center justify-center transition-all duration-500 shrink-0
           ${config.glowClass}
           ${isOpen ? 'scale-110 rotate-3' : 'hover:scale-105 active:scale-95'}
           ${config.animation}
-          group bg-slate-900/40
+          group bg-slate-950/40
         `}
         title={config.label}
       >
@@ -51,23 +51,28 @@ const EvolutiveChest: React.FC<EvolutiveChestProps> = ({ tier, onClick }) => {
           </div>
         )}
 
-        <span className={`text-5xl transition-transform duration-300 ${isOpen ? '-translate-y-2' : 'group-hover:scale-110'}`}>
+        <span className={`text-5xl sm:text-6xl transition-transform duration-300 ${isOpen ? '-translate-y-2' : 'group-hover:scale-110'}`}>
           {config.icon}
         </span>
         
         {/* Tier Indicator */}
-        <div className="absolute -top-3 px-2 py-0.5 bg-slate-950 border border-white/10 rounded-full">
-           <span className="text-[7px] font-black uppercase tracking-widest text-slate-400">Archivio Tier {tier}</span>
+        <div className="absolute -top-3 px-3 py-1 bg-slate-950 border border-white/10 rounded-full shadow-xl">
+           <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Archivio Tier {tier}</span>
         </div>
       </button>
       
-      <div className="text-center">
-        <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${tier === 3 ? 'text-cyan-400' : tier === 2 ? 'text-yellow-500' : 'text-slate-400'}`}>
+      <div className="text-center sm:text-left flex flex-col justify-center">
+        <p className={`text-xs sm:text-sm font-black uppercase tracking-widest mb-1 ${tier === 3 ? 'text-cyan-400' : tier === 2 ? 'text-yellow-500' : 'text-slate-400'}`}>
           {config.label}
         </p>
-        <p className="text-[8px] text-slate-600 font-bold max-w-[120px] leading-tight italic">
+        <p className="text-[10px] sm:text-xs text-slate-500 font-bold max-w-[200px] leading-tight italic">
           {config.description}
         </p>
+        <div className="mt-2 flex justify-center sm:justify-start">
+          <div className="h-1 w-12 bg-slate-800 rounded-full overflow-hidden">
+             <div className="h-full bg-slate-600" style={{ width: `${(tier/3)*100}%` }} />
+          </div>
+        </div>
       </div>
     </div>
   );

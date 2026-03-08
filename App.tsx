@@ -76,7 +76,7 @@ const App: React.FC = () => {
   , [profilesData]);
 
   const addToast = (message: string, kind: string = 'info') => {
-    const id = Date.now();
+    const id = Date.now() + Math.random();
     setToasts(prev => [...prev, { id, message, kind }]);
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
   };
@@ -130,7 +130,7 @@ const App: React.FC = () => {
   };
 
   const handleCreateProfile = (name: string, nickname: string, heroClass: string, avatar: string) => {
-    const id = `profile_${Date.now()}`;
+    const id = `profile_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const newProfile: UserProfile = {
       id, name, nickname, heroClass, avatar,
       version: GAME_RULES.VERSION, lastActivity: "Adesso",
@@ -228,7 +228,7 @@ const App: React.FC = () => {
 
   const finalizeStats = async (finalState: GameState) => {
     if (!activeProfile) return;
-    const diff = finalState.difficulty;
+    const diff: any = finalState.difficulty;
     
     const unlockAchievement = (p: UserProfile, id: string) => {
       if (p.achievements[id]) return;
@@ -302,43 +302,46 @@ const App: React.FC = () => {
       if (profile.worldState.activeShifts.length >= 3) unlockAchievement(profile, "WORLD_SHIFT_ACTIVE");
 
       // DIFFICULTY
-      if (diff === 'normal') {
-        profile.unlocks.hard = true;
-        unlockAchievement(profile, "FIRST_WIN");
-        unlockAchievement(profile, "NORMAL_WIN");
-      }
-      if (diff === 'hard') {
-        profile.unlocks.inferno = true;
-        unlockAchievement(profile, "HARD_WIN");
-      }
-      if (diff === 'inferno') {
-        unlockAchievement(profile, "INFERNO_WIN");
-        if (profile.stats.inferno.wins >= GAME_RULES.INFERNO_WINS_FOR_GOD) {
-          profile.unlocks.god = true;
-        }
-        if (profile.currentWinStreak >= 2) unlockAchievement(profile, "INFERNO_STREAK");
-      }
-      if (diff === 'god') {
-        unlockAchievement(profile, "GOD_WIN");
-        if (profile.stats.god.wins >= 3) unlockAchievement(profile, "REPEATED_GOD");
-        
-        const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
-        chronicle.worldShifts = [...profile.worldState.activeShifts];
-        if (!profile.eternalHall) profile.eternalHall = [];
-        profile.eternalHall.unshift(chronicle);
-        unlockAchievement(profile, "HALL_ENTRY");
-
-        const classEternal = profile.eternalUnlocks[heroClass] || [];
-        if (profile.stats.god.wins >= GAME_RULES.GOD_WINS_FOR_ETERNAL) {
-          if (!classEternal.includes('standard')) {
-            classEternal.push('standard');
-            addToast(`Tier 3 Sbloccato per ${heroClass}!`, "success");
+      switch (diff) {
+        case 'normal':
+          profile.unlocks.hard = true;
+          unlockAchievement(profile, "FIRST_WIN");
+          unlockAchievement(profile, "NORMAL_WIN");
+          break;
+        case 'hard':
+          profile.unlocks.inferno = true;
+          unlockAchievement(profile, "HARD_WIN");
+          break;
+        case 'inferno':
+          unlockAchievement(profile, "INFERNO_WIN");
+          if (profile.stats.inferno.wins >= GAME_RULES.INFERNO_WINS_FOR_GOD) {
+            profile.unlocks.god = true;
           }
-        }
-        profile.eternalUnlocks[heroClass] = classEternal;
-      }
-      if (diff === 'question') {
-        unlockAchievement(profile, "QUESTION_WIN");
+          if (profile.currentWinStreak >= 2) unlockAchievement(profile, "INFERNO_STREAK");
+          break;
+        case 'god':
+          unlockAchievement(profile, "GOD_WIN");
+          if (profile.stats.god.wins >= 3) unlockAchievement(profile, "REPEATED_GOD");
+          
+          const chronicle = ChronicleManager.createEntry(finalState, profile.nickname, profile.heroClass, profile.progression.paradoxUnlocked);
+          chronicle.worldShifts = [...profile.worldState.activeShifts];
+          
+          if (!profile.eternalHall) profile.eternalHall = [];
+          profile.eternalHall.unshift(chronicle);
+          unlockAchievement(profile, "HALL_ENTRY");
+
+          const classEternal = profile.eternalUnlocks[heroClass] || [];
+          if (profile.stats.god.wins >= GAME_RULES.GOD_WINS_FOR_ETERNAL) {
+            if (!classEternal.includes('standard')) {
+              classEternal.push('standard');
+              addToast(`Tier 3 Sbloccato per ${heroClass}!`, "success");
+            }
+          }
+          profile.eternalUnlocks[heroClass] = classEternal;
+          break;
+        case 'question':
+          unlockAchievement(profile, "QUESTION_WIN");
+          break;
       }
 
       // SECRET
@@ -642,46 +645,55 @@ const App: React.FC = () => {
       ) : view === 'difficulty-selection' ? (
         <DifficultySelector activeProfile={activeProfile!} onSelect={startNewGame} onCancel={() => setView('main-menu')} />
       ) : view === 'main-menu' ? (
-        <div className={`flex-1 flex flex-col items-center justify-center relative z-10 p-4 sm:p-6 text-center animate-in fade-in duration-700 ${isBooting ? 'invisible' : ''}`}>
-           <div className="mb-4 sm:mb-8 flex flex-col items-center">
-              <div className="relative group">
-                <img src={activeProfile?.avatar} className={`w-16 h-16 sm:w-24 sm:h-24 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl mb-2 sm:mb-4 transition-all duration-500`} />
-                {currentEternalVariant && (
-                  <div className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 bg-slate-950 border border-yellow-500/50 w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm sm:text-xl shadow-lg animate-bounce">
-                    {currentEternalVariant.icon}
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col items-center">
-                 <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
-                   {activeProfile?.nickname}
-                   {currentEternalVariant && <span className={`text-[8px] sm:text-[10px] font-black uppercase ${currentEternalVariant.color}`}>{currentEternalVariant.name}</span>}
-                 </h2>
-                 <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{activeProfile?.heroClass}</p>
-              </div>
+        <div className={`flex-1 flex flex-col items-center justify-start relative z-10 p-4 sm:p-6 text-center animate-in fade-in duration-700 overflow-y-auto ${isBooting ? 'invisible' : ''}`}>
+           <div className="w-full max-w-4xl flex flex-col gap-3 sm:gap-5 lg:gap-6 my-auto py-4">
+              {/* Profile & Action Buttons Section */}
+              <div className="flex flex-col items-center gap-3 sm:gap-4">
+                 <div className="flex flex-col items-center">
+                    <div className="relative group mb-2 sm:mb-3">
+                      <img src={activeProfile?.avatar} className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 ${activeProfile?.unlocks.god ? 'border-yellow-500 god-border-glow shadow-[0_0_30px_rgba(250,204,21,0.5)]' : 'border-slate-800'} shadow-2xl transition-all duration-500`} />
+                      {currentEternalVariant && (
+                        <div className="absolute -bottom-1 -right-1 sm:-bottom-2 sm:-right-2 bg-slate-950 border border-yellow-500/50 w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm sm:text-lg shadow-lg animate-bounce">
+                          {currentEternalVariant.icon}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-center">
+                       <h2 className="text-xl sm:text-2xl font-black text-white uppercase tracking-tighter flex items-center gap-2">
+                         {activeProfile?.nickname}
+                         {currentEternalVariant && <span className={`text-[8px] sm:text-[10px] font-black uppercase ${currentEternalVariant.color}`}>{currentEternalVariant.name}</span>}
+                       </h2>
+                       <p className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">{activeProfile?.heroClass}</p>
+                    </div>
+                 </div>
 
-              <div className="mt-4 sm:mt-8 flex flex-col items-center gap-3 sm:gap-6">
-                 <div className="flex flex-wrap justify-center gap-2 sm:gap-4">
-                    <button onClick={() => setShowRules(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Manuale</button>
-                    <button onClick={() => setShowSave(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Vault</button>
-                    <button onClick={() => setShowHall(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-500/20 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Hall of Eternal</button>
+                 <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+                    <button onClick={() => setShowRules(true)} className="px-4 sm:px-5 py-2 sm:py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 font-bold rounded-xl border border-white/5 transition-all text-[8px] sm:text-[9px] uppercase tracking-widest">Manuale</button>
+                    <button onClick={() => setShowSave(true)} className="px-4 sm:px-5 py-2 sm:py-2.5 bg-blue-900/40 hover:bg-blue-800 text-blue-400 font-bold rounded-xl border border-blue-500/20 transition-all text-[8px] sm:text-[9px] uppercase tracking-widest">Vault</button>
+                    <button onClick={() => setShowHall(true)} className="px-4 sm:px-5 py-2 sm:py-2.5 bg-purple-900/40 hover:bg-purple-800 text-purple-400 font-bold rounded-xl border border-purple-500/20 transition-all text-[8px] sm:text-[9px] uppercase tracking-widest">Hall of Eternal</button>
                     {activeProfile && Object.values(activeProfile.eternalUnlocks).some((u: string[]) => u.length > 0) && (
-                      <button onClick={() => setShowVariants(true)} className="px-4 sm:px-6 py-2 sm:py-3 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[8px] sm:text-[10px] uppercase tracking-widest">Eternal Variants</button>
+                      <button onClick={() => setShowVariants(true)} className="px-4 sm:px-5 py-2 sm:py-2.5 bg-yellow-950/20 hover:bg-yellow-900 text-yellow-500 font-bold rounded-xl border border-yellow-500/20 transition-all text-[8px] sm:text-[9px] uppercase tracking-widest">Eternal Variants</button>
                     )}
                  </div>
-                 
+              </div>
+
+              {/* Chest Section */}
+              <div className="flex justify-center">
                  <EvolutiveChest 
                    tier={activeProfile?.progression.tier || 0} 
                    onClick={() => setShowStats(true)} 
                  />
               </div>
-           </div>
-           
-           <h1 className="text-5xl sm:text-8xl font-black text-red-600 uppercase tracking-tighter mb-4 sm:mb-10 drop-shadow-2xl">Scoundrel</h1>
-           
-           <div className="flex flex-col gap-2 sm:gap-4 w-full max-w-xs">
-              <button onClick={() => setView('difficulty-selection')} className="py-3 sm:py-5 bg-red-600 text-white font-black rounded-2xl border-b-4 sm:border-b-8 border-red-950 active:translate-y-2 active:border-b-0 transition-all text-lg sm:text-xl uppercase italic">Inizia Spedizione</button>
-              <button onClick={() => { setProfilesData(prev => ({ ...prev, activeProfileId: null })); setView('profile-selection'); }} className="py-2 text-slate-500 font-bold uppercase text-[8px] sm:text-[10px] tracking-widest">Cambia Profilo</button>
+
+              {/* Logo & Start Section */}
+              <div className="flex flex-col items-center">
+                 <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black text-red-600 uppercase tracking-tighter mb-3 sm:mb-4 drop-shadow-[0_10px_30px_rgba(220,38,38,0.3)] select-none">Scoundrel</h1>
+                 
+                 <div className="flex flex-col gap-2 w-full max-w-xs">
+                    <button onClick={() => setView('difficulty-selection')} className="py-3 sm:py-4 bg-red-600 text-white font-black rounded-2xl border-b-4 sm:border-b-8 border-red-950 active:translate-y-1 active:border-b-0 transition-all text-lg sm:text-xl uppercase italic shadow-xl shadow-red-900/20">Inizia Spedizione</button>
+                    <button onClick={() => { setProfilesData(prev => ({ ...prev, activeProfileId: null })); setView('profile-selection'); }} className="py-2 text-slate-500 hover:text-slate-300 font-bold uppercase text-[8px] sm:text-[10px] tracking-widest transition-colors">Cambia Profilo</button>
+                 </div>
+              </div>
            </div>
         </div>
       ) : (gameState.status === 'playing') ? (

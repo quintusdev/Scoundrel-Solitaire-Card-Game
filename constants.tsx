@@ -1,5 +1,5 @@
 
-import { Card, Suit, Difficulty, AltarNode } from './types';
+import { Card, Suit, Difficulty, AltarNode, Achievement } from './types';
 
 export const GAME_RULES = {
   INITIAL_HEALTH: 20,
