@@ -151,7 +151,8 @@ const SaveSlotCard: React.FC<{ save: SignedSave | null, difficulty: Difficulty, 
           Carica Spedizione
         </button>
         <button 
-          onClick={() => { if(window.confirm("Eliminare definitivamente questo salvataggio?")) onDelete(difficulty, slotIdx); }}
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(difficulty, slotIdx); }}
           className="px-4 py-3 bg-red-950/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
           title="Elimina Salvataggio"
         >

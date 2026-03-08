@@ -69,7 +69,17 @@ const App: React.FC = () => {
     status: "start", difficulty: "normal", health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
     equippedWeapon: null, weaponDurability: null, deck: [], room: [], selectedCardId: null, fugaDisponibile: true,
     fugaUsataUltimaStanza: false, roomIndex: 0, enemiesDefeated: 0, startTime: 0,
-    sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: GAME_RULES.INITIAL_HEALTH, weaponsBroken: 0, lastDurabilityKill: false, roomMonstersCount: 0, acesInRoom: 0, noWeaponKills10Plus: 0, lowHPStreak: 0, maxLowHPStreak: 0 }
+    sessionStats: { 
+      roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, 
+      weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: GAME_RULES.INITIAL_HEALTH, 
+      maxHealthReached: GAME_RULES.INITIAL_HEALTH, weaponsBroken: 0, lastDurabilityKill: false, 
+      roomMonstersCount: 0, acesInRoom: 0, noWeaponKills10Plus: 0, lowHPStreak: 0, maxLowHPStreak: 0,
+      monstersDefeatedWithoutHealing: 0, weaponsEquippedInRoom: 0, potionsUsedInRoom: 0, turnsInRoom: 0,
+      monstersOfValue13PlusDefeated: 0, currentRoomsWithoutDamage: 0, maxRoomsWithoutDamage: 0,
+      currentWeaponRooms: 0, maxWeaponRooms: 0, maxWeaponValueUsed: 0, minWeaponValueUsed: 99,
+      hasEquippedWeapon: false, potionsFoundInRoom: 0, reached1HPBeforeRoom5: false, monstersInRun: 0,
+      damageTakenInRoom: 0
+    }
   });
 
   const activeProfile = useMemo(() => 
@@ -249,7 +259,17 @@ const App: React.FC = () => {
       deck: fullDeck.slice(4), room: fullDeck.slice(0, 4), roomIndex: 1,
       selectedCardId: null, fugaDisponibile: true, fugaUsataUltimaStanza: false, enemiesDefeated: 0,
       startTime: Date.now(),
-      sessionStats: { roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: initialHP, weaponsBroken: 0, lastDurabilityKill: false, roomMonstersCount: 0, acesInRoom: 0, noWeaponKills10Plus: 0, lowHPStreak: 0, maxLowHPStreak: 0 }
+      sessionStats: { 
+        roomsReached: 1, enemiesDefeated: 0, damageTaken: 0, healingDone: 0, 
+        weaponsEquipped: 0, potionsUsed: 0, retreatsUsed: 0, minHealthReached: initialHP, 
+        maxHealthReached: initialHP, weaponsBroken: 0, lastDurabilityKill: false, 
+        roomMonstersCount: 0, acesInRoom: 0, noWeaponKills10Plus: 0, lowHPStreak: 0, maxLowHPStreak: 0,
+        monstersDefeatedWithoutHealing: 0, weaponsEquippedInRoom: 0, potionsUsedInRoom: 0, turnsInRoom: 0,
+        monstersOfValue13PlusDefeated: 0, currentRoomsWithoutDamage: 0, maxRoomsWithoutDamage: 0,
+        currentWeaponRooms: 0, maxWeaponRooms: 0, maxWeaponValueUsed: 0, minWeaponValueUsed: 99,
+        hasEquippedWeapon: false, potionsFoundInRoom: 0, reached1HPBeforeRoom5: false, monstersInRun: fullDeck.filter(c => getCardType(c.suit) === 'monster').length,
+        damageTakenInRoom: 0
+      }
     };
     setGameState(newState);
     setView('playing');
@@ -521,7 +541,16 @@ const App: React.FC = () => {
         next.enemiesDefeated++;
         next.sessionStats.enemiesDefeated++;
         next.sessionStats.damageTaken += damage;
+        next.sessionStats.damageTakenInRoom += damage;
         next.sessionStats.minHealthReached = Math.min(next.sessionStats.minHealthReached, next.health);
+        next.sessionStats.monstersDefeatedWithoutHealing++;
+        if (effectiveCardValue >= 13) next.sessionStats.monstersOfValue13PlusDefeated++;
+        if (next.health === 1 && damage > 0) unlockAchievement(activeProfile!, "CLOSE_CALL");
+        if (effectiveCardValue === 14 && weaponVal === 14) unlockAchievement(activeProfile!, "SHARP_EDGE");
+        if (effectiveCardValue === 2 && weaponVal === 14) unlockAchievement(activeProfile!, "OVERKILL");
+        if (next.health === 1 && !next.equippedWeapon) unlockAchievement(activeProfile!, "LAST_STAND");
+        if (next.sessionStats.monstersDefeatedWithoutHealing >= 10) unlockAchievement(activeProfile!, "BLOOD_BATH");
+        if (next.roomIndex < 5 && next.health === 1) next.sessionStats.reached1HPBeforeRoom5 = true;
 
         if (isQuestion && shifts.some(s => s.effectId === 'regen_on_kill') && next.enemiesDefeated % 2 === 0) {
           next.health = Math.min(next.maxHealth, next.health + 1);
@@ -542,22 +571,38 @@ const App: React.FC = () => {
             next.weaponDurability = null; 
             next.sessionStats.weaponsBroken++;
             next.sessionStats.lastDurabilityKill = true;
+            if (next.deck.length === 0 && next.room.length === 0) unlockAchievement(activeProfile!, "BROKEN_DREAM");
           } else {
             next.sessionStats.lastDurabilityKill = false;
           }
         } else if (!prev.equippedWeapon && effectiveCardValue >= 10) {
           next.sessionStats.noWeaponKills10Plus++;
+          unlockAchievement(activeProfile!, "EMPTY_HANDS");
         }
       } else if (type === "weapon") {
         next.equippedWeapon = card;
         next.weaponDurability = DifficultyRules.getMaxDurability(prev.difficulty);
         next.sessionStats.weaponsEquipped++;
+        next.sessionStats.weaponsEquippedInRoom++;
+        next.sessionStats.hasEquippedWeapon = true;
+        next.sessionStats.maxWeaponValueUsed = Math.max(next.sessionStats.maxWeaponValueUsed, card.value);
+        next.sessionStats.minWeaponValueUsed = Math.min(next.sessionStats.minWeaponValueUsed, card.value);
+        if (next.sessionStats.weaponsEquippedInRoom >= 3) unlockAchievement(activeProfile!, "BLADE_DANCE");
       } else if (type === "potion") {
         let heal = Math.floor(effectiveCardValue * DifficultyRules.getHealMultiplier(prev.difficulty));
         heal = Math.max(0, heal + healBonus);
+        if (prev.health === prev.maxHealth && heal > 0) {
+           unlockAchievement(activeProfile!, "WASTEFUL");
+           unlockAchievement(activeProfile!, "OVERSTACK");
+           unlockAchievement(activeProfile!, "OVERSTACK"); // Twice for emphasis? No, just once.
+        }
         next.health = Math.min(prev.maxHealth, prev.health + heal);
         next.sessionStats.healingDone += heal;
         next.sessionStats.potionsUsed++;
+        next.sessionStats.potionsUsedInRoom++;
+        next.sessionStats.monstersDefeatedWithoutHealing = 0;
+        if (next.sessionStats.potionsUsedInRoom >= 3) unlockAchievement(activeProfile!, "OVERDOSE");
+        if (next.health >= 30) unlockAchievement(activeProfile!, "VITALITY_MAX");
       }
 
       if (next.health <= 0) { next.status = "lost"; finalizeStats(next); return next; }
@@ -645,11 +690,15 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSave = (difficulty: Difficulty, slotIdx: number) => {
-    if (!activeProfile) return;
+    const confirmed = window.confirm("Sei sicuro di voler eliminare questo salvataggio?");
+    if (!confirmed || !activeProfile) return;
+
     const updatedSaves = { ...activeProfile.saves };
+    updatedSaves[difficulty] = [...updatedSaves[difficulty]];
     updatedSaves[difficulty][slotIdx] = null;
+
     updateActiveProfile({ saves: updatedSaves });
-    addToast(`Salvataggio nello Slot ${slotIdx + 1} eliminato.`, "info");
+    addToast("Salvataggio eliminato.", "success");
   };
 
   const handleSelectVariant = (variantId: string | null) => {

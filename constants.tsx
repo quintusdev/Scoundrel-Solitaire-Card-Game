@@ -203,69 +203,139 @@ export const DIFFICULTY_CONFIG: Record<Difficulty, {
 };
 
 export const ACHIEVEMENTS: Record<string, Achievement> = {
-  // INTRO / EARLY GAME
+  // 1. INTRO / ONBOARDING
   "FIRST_WIN": { id: "FIRST_WIN", name: "Battesimo del Sangue", desc: "Vinci la tua prima partita.", icon: "🩸", rarity: 'common', category: "intro", hidden: false },
   "FIRST_LOSS": { id: "FIRST_LOSS", name: "Lezione Amara", desc: "Perdi la tua prima partita.", icon: "💀", rarity: 'common', category: "intro", hidden: false },
   "PROFILE_MILESTONE": { id: "PROFILE_MILESTONE", name: "Identità Accertata", desc: "Crea il tuo primo profilo.", icon: "🆔", rarity: 'common', category: "intro", hidden: false },
   "FIRST_SAVE": { id: "FIRST_SAVE", name: "Memoria del Sangue", desc: "Effettua il tuo primo salvataggio.", icon: "💾", rarity: 'common', category: "intro", hidden: false },
   "FIRST_LOAD": { id: "FIRST_LOAD", name: "Ritorno dall'Abisso", desc: "Carica una partita salvata.", icon: "📂", rarity: 'common', category: "intro", hidden: false },
+  "VAULT_VISITOR": { id: "VAULT_VISITOR", name: "Custode del Caveau", desc: "Apri il Vault per la prima volta.", icon: "🏛️", rarity: 'common', category: "intro", hidden: false },
+  "NICKNAME_CHANGE": { id: "NICKNAME_CHANGE", name: "Nuovo Volto", desc: "Cambia il tuo nickname nel profilo.", icon: "🎭", rarity: 'common', category: "intro", hidden: false },
+  "TUTORIAL_AWARE": { id: "TUTORIAL_AWARE", name: "Apprendista", desc: "Visualizza le regole del gioco.", icon: "📖", rarity: 'common', category: "intro", hidden: false },
 
-  // COMBAT / SURVIVAL
+  // 2. EARLY PROGRESSION
+  "FIRST_ACHIEVEMENT": { id: "FIRST_ACHIEVEMENT", name: "Primo Passo", desc: "Sblocca il tuo primo obiettivo.", icon: "🎖️", rarity: 'common', category: "progression", hidden: false },
+  "FIRST_SIGIL": { id: "FIRST_SIGIL", name: "Frammento d'Abisso", desc: "Ottieni il tuo primo Sigillo dell'Abisso.", icon: "💠", rarity: 'common', category: "progression", hidden: false },
+  "SIGIL_COLLECTOR_10": { id: "SIGIL_COLLECTOR_10", name: "Raccoglitore", desc: "Possiedi 10 Sigilli contemporaneamente.", icon: "💰", rarity: 'common', category: "progression", hidden: false },
+  "PROGRESS_5": { id: "PROGRESS_5", name: "In Cammino", desc: "Sblocca 5 obiettivi totali.", icon: "🥉", rarity: 'common', category: "progression", hidden: false },
+  "PROGRESS_10": { id: "PROGRESS_10", name: "Riconosciuto", desc: "Sblocca 10 obiettivi totali.", icon: "🥈", rarity: 'common', category: "progression", hidden: false },
+  "VAULT_EXPLORER": { id: "VAULT_EXPLORER", name: "Curiosità Insaziabile", desc: "Visita tutte le sezioni del Vault.", icon: "🔍", rarity: 'common', category: "progression", hidden: false },
+  "ALTAR_VISITOR": { id: "ALTAR_VISITOR", name: "Ai Piedi dell'Altare", desc: "Apri la sezione Altare nel Vault.", icon: "🕯️", rarity: 'common', category: "progression", hidden: false },
+  "BRANCH_START": { id: "BRANCH_START", name: "Scelta di Potere", desc: "Sblocca il primo nodo in due rami diversi dell'Altare.", icon: "🌿", rarity: 'common', category: "progression", hidden: false },
+
+  // 3. COMBAT / SURVIVAL
   "LOW_HP_WIN": { id: "LOW_HP_WIN", name: "Sul Filo del Rasoio", desc: "Vinci una partita con 1 HP rimanente.", icon: "🩸", rarity: 'rare', category: "combat", hidden: false },
   "MONSTER_SLAYER": { id: "MONSTER_SLAYER", name: "Sterminatore", desc: "Sconfiggi 50 mostri in una singola partita.", icon: "⚔️", rarity: 'rare', category: "combat", hidden: false },
   "MINIMAL_HEAL": { id: "MINIMAL_HEAL", name: "Pelle Dura", desc: "Vinci una partita curandoti meno di 10 HP totali.", icon: "🛡️", rarity: 'epic', category: "combat", hidden: false },
   "MANY_RETREATS": { id: "MANY_RETREATS", name: "Vigliacco Sopravvissuto", desc: "Vinci una partita dopo aver usato la fuga 5+ volte.", icon: "🏃", rarity: 'rare', category: "combat", hidden: false },
   "DEEP_ROOMS": { id: "DEEP_ROOMS", name: "Esploratore del Profondo", desc: "Raggiungi la stanza 13.", icon: "🧭", rarity: 'common', category: "combat", hidden: false },
+  "CLOSE_CALL": { id: "CLOSE_CALL", name: "Miracolato", desc: "Sopravvivi a un attacco che ti lascia esattamente a 1 HP.", icon: "🚑", rarity: 'rare', category: "combat", hidden: false },
+  "OVERKILL": { id: "OVERKILL", name: "Eccesso di Zelo", desc: "Sconfiggi un mostro di valore 2 con un'arma di valore 14.", icon: "💥", rarity: 'common', category: "combat", hidden: false },
+  "ENDURANCE": { id: "ENDURANCE", name: "Maratoneta dell'Abisso", desc: "Sopravvivi per 20 stanze in una singola spedizione.", icon: "🏃‍♂️", rarity: 'rare', category: "combat", hidden: false },
+  "BOSS_CRUSHER": { id: "BOSS_CRUSHER", name: "Cacciatore di Re", desc: "Sconfiggi 5 mostri di valore 13+ in una singola partita.", icon: "👹", rarity: 'epic', category: "combat", hidden: false },
+  "UNTOUCHABLE": { id: "UNTOUCHABLE", name: "Intoccabile", desc: "Completa 3 stanze consecutive senza subire danni.", icon: "✨", rarity: 'rare', category: "combat", hidden: false },
+  "LAST_STAND": { id: "LAST_STAND", name: "Ultima Resistenza", desc: "Sconfiggi un mostro quando hai 1 HP e nessuna arma.", icon: "✊", rarity: 'epic', category: "combat", hidden: false },
+  "BLOOD_BATH": { id: "BLOOD_BATH", name: "Bagno di Sangue", desc: "Sconfiggi 10 mostri di fila senza mai curarti.", icon: "🛁", rarity: 'epic', category: "combat", hidden: false },
 
-  // WEAPON MASTERY
+  // 4. WEAPON MASTERY
   "MANY_WEAPONS": { id: "MANY_WEAPONS", name: "Arsenale Mobile", desc: "Equipaggia 10 armi diverse in una partita.", icon: "🗡️", rarity: 'rare', category: "weapon", hidden: false },
   "WEAPON_HEAVY": { id: "WEAPON_HEAVY", name: "Maestro di Scherma", desc: "Sconfiggi l'80% dei mostri usando un'arma.", icon: "🤺", rarity: 'rare', category: "weapon", hidden: false },
   "LOW_DURABILITY": { id: "LOW_DURABILITY", name: "All'Ultimo Respiro", desc: "Sconfiggi un mostro con l'ultimo uso di un'arma.", icon: "🔨", rarity: 'common', category: "weapon", hidden: false },
   "WEAPON_BREAK": { id: "WEAPON_BREAK", name: "Acciaio Infranto", desc: "Rompi 5 armi in una singola partita.", icon: "💔", rarity: 'common', category: "weapon", hidden: false },
+  "BLADE_DANCE": { id: "BLADE_DANCE", name: "Danza delle Lame", desc: "Equipaggia 3 armi diverse in una singola stanza.", icon: "💃", rarity: 'rare', category: "weapon", hidden: false },
+  "SHARP_EDGE": { id: "SHARP_EDGE", name: "Taglio Netto", desc: "Sconfiggi un mostro di valore 14 con un'arma di valore 14.", icon: "⚔️", rarity: 'rare', category: "weapon", hidden: false },
+  "FRAGILE_VICTORY": { id: "FRAGILE_VICTORY", name: "Vittoria Fragile", desc: "Vinci una partita in cui si sono rotte 10+ armi.", icon: "💎", rarity: 'epic', category: "weapon", hidden: false },
+  "RUSTED_HERO": { id: "RUSTED_HERO", name: "Eroe Arrugginito", desc: "Vinci usando solo armi di valore 5 o inferiore.", icon: "⛓️", rarity: 'epic', category: "weapon", hidden: false },
+  "WEAPON_HOARDER": { id: "WEAPON_HOARDER", name: "Affezionato", desc: "Mantieni la stessa arma equipaggiata per 10 stanze.", icon: "🤝", rarity: 'rare', category: "weapon", hidden: false },
+  "MASTER_SMITH": { id: "MASTER_SMITH", name: "Mastro Fabbro", desc: "Raggiungi la stanza 10 senza rompere alcuna arma.", icon: "⚒️", rarity: 'rare', category: "weapon", hidden: false },
 
-  // POTION / RESOURCE PLAY
+  // 5. POTION / RESOURCE MANAGEMENT
   "NO_POTIONS": { id: "NO_POTIONS", name: "Ascetico", desc: "Vinci senza usare alcuna pozione.", icon: "🧪", rarity: 'epic', category: "potion", hidden: false },
   "MANY_POTIONS": { id: "MANY_POTIONS", name: "Alchimista", desc: "Usa 15+ pozioni in una singola partita.", icon: "⚗️", rarity: 'rare', category: "potion", hidden: false },
   "EFFICIENT_HEAL": { id: "EFFICIENT_HEAL", name: "Sanguisuga", desc: "Usa una pozione di valore 10+ quando hai meno di 5 HP.", icon: "💉", rarity: 'common', category: "potion", hidden: false },
   "SCARCE_RESOURCES": { id: "SCARCE_RESOURCES", name: "Sopravvissuto Estremo", desc: "Vinci una partita senza mai avere più di 5 HP per 5 stanze.", icon: "📉", rarity: 'epic', category: "potion", hidden: false },
+  "OVERDOSE": { id: "OVERDOSE", name: "Sovradosaggio", desc: "Usa 3 pozioni in una singola stanza.", icon: "😵", rarity: 'common', category: "potion", hidden: false },
+  "PURIST": { id: "PURIST", name: "Purista", desc: "Vinci senza mai superare i 15 HP massimi.", icon: "🧘", rarity: 'epic', category: "potion", hidden: false },
+  "LIQUID_LUCK": { id: "LIQUID_LUCK", name: "Fortuna Liquida", desc: "Trova 2 pozioni nella stessa stanza.", icon: "🧪🧪", rarity: 'common', category: "potion", hidden: false },
+  "WASTEFUL": { id: "WASTEFUL", name: "Sprecone", desc: "Usa una pozione quando sei già al massimo della vita.", icon: "🗑️", rarity: 'common', category: "potion", hidden: false },
+  "SOBRIETY": { id: "SOBRIETY", name: "Sobrietà", desc: "Raggiungi la stanza 10 senza usare pozioni.", icon: "🚫", rarity: 'rare', category: "potion", hidden: false },
+  "VITALITY_MAX": { id: "VITALITY_MAX", name: "Vigore Divino", desc: "Raggiungi 30+ HP durante una partita.", icon: "💖", rarity: 'rare', category: "potion", hidden: false },
 
-  // FLEE / TACTICAL PLAY
+  // 6. FLEE / CONTROL / TACTICS
   "NEVER_FLEE": { id: "NEVER_FLEE", name: "Incrollabile", desc: "Vinci senza mai usare la fuga.", icon: "🚩", rarity: 'rare', category: "flee", hidden: false },
   "FLEE_MANY": { id: "FLEE_MANY", name: "Ombra Sfuggente", desc: "Usa la fuga in ogni stanza possibile e sopravvivi.", icon: "👻", rarity: 'rare', category: "flee", hidden: false },
   "RECOVER_FLEE": { id: "RECOVER_FLEE", name: "Ritorno di Fiamma", desc: "Vinci dopo essere fuggito da una stanza con 1 HP.", icon: "🔥", rarity: 'rare', category: "flee", hidden: false },
   "TACTICAL_WAIT": { id: "TACTICAL_WAIT", name: "Pazienza del Ragno", desc: "Vinci una stanza senza usare l'arma equipaggiata.", icon: "🕷️", rarity: 'common', category: "flee", hidden: false },
+  "CALCULATED_RISK": { id: "CALCULATED_RISK", name: "Rischio Calcolato", desc: "Fuggi da un mostro che ti avrebbe lasciato con 1 HP.", icon: "🧮", rarity: 'rare', category: "flee", hidden: false },
+  "COWARD_KING": { id: "COWARD_KING", name: "Re dei Codardi", desc: "Usa la fuga 10 volte in una singola partita.", icon: "👑🏃", rarity: 'rare', category: "flee", hidden: false },
+  "STALKER": { id: "STALKER", name: "Osservatore", desc: "Passa 3 turni in una stanza prima di compiere un'azione.", icon: "👁️‍🗨️", rarity: 'common', category: "flee", hidden: false },
+  "NO_EXIT": { id: "NO_EXIT", name: "Senza Via d'Uscita", desc: "Completa la modalità Hard senza mai fuggire.", icon: "🚪🚫", rarity: 'rare', category: "flee", hidden: false },
 
-  // DIFFICULTY MILESTONES
+  // 7. DIFFICULTY MILESTONES
   "NORMAL_WIN": { id: "NORMAL_WIN", name: "Scoundrel", desc: "Vinci in modalità Normale.", icon: "🃏", rarity: 'common', category: "difficulty", hidden: false },
   "HARD_WIN": { id: "HARD_WIN", name: "Veterano", desc: "Vinci in modalità Hard.", icon: "⚔️", rarity: 'rare', category: "difficulty", hidden: false },
   "INFERNO_WIN": { id: "INFERNO_WIN", name: "Eroe Infernale", desc: "Vinci in modalità Inferno.", icon: "🔥", rarity: 'epic', category: "difficulty", hidden: false },
   "GOD_WIN": { id: "GOD_WIN", name: "Ascendente", desc: "Completa la modalità GOD.", icon: "👑", rarity: 'god', category: "difficulty", hidden: false },
   "QUESTION_WIN": { id: "QUESTION_WIN", name: "Oltre la Realtà", desc: "Vinci in modalità The Question.", icon: "❓", rarity: 'god', category: "difficulty", hidden: false },
+  "NORMAL_MASTER": { id: "NORMAL_MASTER", name: "Signore del Mazzo", desc: "Vinci 10 partite in modalità Normale.", icon: "🎴", rarity: 'rare', category: "difficulty", hidden: false },
+  "HARD_MASTER": { id: "HARD_MASTER", name: "Tempra d'Acciaio", desc: "Vinci 5 partite in modalità Hard.", icon: "🛡️", rarity: 'epic', category: "difficulty", hidden: false },
+  "INFERNO_MASTER": { id: "INFERNO_MASTER", name: "Dominatore delle Fiamme", desc: "Vinci 3 partite in modalità Inferno.", icon: "🌋", rarity: 'god', category: "difficulty", hidden: false },
+  "PARADOX_SURVIVOR": { id: "PARADOX_SURVIVOR", name: "Superstite del Paradosso", desc: "Vinci una partita Paradox con 5+ shift attivi.", icon: "🌀", rarity: 'god', category: "difficulty", hidden: false },
+  "DIFFICULTY_JUMPER": { id: "DIFFICULTY_JUMPER", name: "Salto nel Buio", desc: "Vinci una partita Hard subito dopo una Normale.", icon: "🦘", rarity: 'rare', category: "difficulty", hidden: false },
 
-  // CONSISTENCY / STREAK
+  // 8. RUN QUALITY / STYLE
+  "FLAWLESS_RUN": { id: "FLAWLESS_RUN", name: "Immacolato", desc: "Vinci una partita senza mai perdere HP.", icon: "💎", rarity: 'god', category: "style", hidden: false },
+  "BRUTAL_WIN": { id: "BRUTAL_WIN", name: "Vittoria Brutale", desc: "Vinci sconfiggendo ogni singolo mostro incontrato.", icon: "👊", rarity: 'epic', category: "style", hidden: false },
+  "RECKLESS_ABANDON": { id: "RECKLESS_ABANDON", name: "Follia Temeraria", desc: "Vinci senza mai equipaggiare un'arma.", icon: "🧠🚫", rarity: 'god', category: "style", hidden: false },
+  "DISCIPLINED": { id: "DISCIPLINED", name: "Disciplinato", desc: "Vinci attaccando mostri solo quando strettamente necessario.", icon: "🧘‍♂️", rarity: 'epic', category: "style", hidden: false },
+  "COMEBACK_KID": { id: "COMEBACK_KID", name: "Ritorno dall'Orlo", desc: "Vinci dopo essere sceso a 1 HP prima della stanza 5.", icon: "📈", rarity: 'epic', category: "style", hidden: false },
+  "SPEEDRUNNER": { id: "SPEEDRUNNER", name: "Fulmine nell'Abisso", desc: "Vinci una partita in meno di 5 minuti.", icon: "⚡", rarity: 'rare', category: "style", hidden: false },
+  "PACIFIST_ISH": { id: "PACIFIST_ISH", name: "Quasi Pacifico", desc: "Vinci sconfiggendo meno di 10 mostri in totale.", icon: "🕊️", rarity: 'epic', category: "style", hidden: false },
+  "WEAPONLESS_ROOM": { id: "WEAPONLESS_ROOM", name: "Coraggio Nudo", desc: "Pulisci una stanza con 2+ mostri senza usare armi.", icon: "🥋", rarity: 'rare', category: "style", hidden: false },
+  "POTIONLESS_ROOM": { id: "POTIONLESS_ROOM", name: "Astinenza", desc: "Pulisci una stanza con 2+ pozioni senza berne alcuna.", icon: "🚱", rarity: 'common', category: "style", hidden: false },
+  "PERFECTIONIST": { id: "PERFECTIONIST", name: "Perfezionista", desc: "Vinci con HP massimi e un'arma integra.", icon: "💯", rarity: 'god', category: "style", hidden: false },
+
+  // 9. STREAK / CONSISTENCY
   "TRIPLE_WIN": { id: "TRIPLE_WIN", name: "Costanza Letale", desc: "Vinci 3 partite consecutive.", icon: "🎯", rarity: 'rare', category: "streak", hidden: false },
   "STREAK_5": { id: "STREAK_5", name: "Inarrestabile", desc: "Vinci 5 partite consecutive.", icon: "⚡", rarity: 'epic', category: "streak", hidden: false },
   "REPEATED_GOD": { id: "REPEATED_GOD", name: "Divinità Stabile", desc: "Vinci 3 volte in modalità GOD.", icon: "☀️", rarity: 'god', category: "streak", hidden: false },
   "INFERNO_STREAK": { id: "INFERNO_STREAK", name: "Dominatore del Fuoco", desc: "Vinci 2 volte consecutive in modalità Inferno.", icon: "🌋", rarity: 'god', category: "streak", hidden: false },
+  "UNSTOPPABLE_FORCE": { id: "UNSTOPPABLE_FORCE", name: "Forza Inarrestabile", desc: "Raggiungi un totale di 10 vittorie complessive.", icon: "🚜", rarity: 'rare', category: "streak", hidden: false },
+  "ETERNAL_LEGEND": { id: "ETERNAL_LEGEND", name: "Leggenda Eterna", desc: "Raggiungi un totale di 50 vittorie complessive.", icon: "📜", rarity: 'epic', category: "streak", hidden: false },
+  "CONSISTENT_HERO": { id: "CONSISTENT_HERO", name: "Eroe Affidabile", desc: "Vinci 3 partite di fila a difficoltà Hard o superiore.", icon: "🎖️", rarity: 'epic', category: "streak", hidden: false },
+  "GOD_STREAK": { id: "GOD_STREAK", name: "Scia Divina", desc: "Vinci 2 partite consecutive in modalità GOD.", icon: "👑👑", rarity: 'god', category: "streak", hidden: false },
 
-  // CHRONICLE / HALL / META
+  // 10. HALL / CHRONICLE / LEGACY
   "HALL_ENTRY": { id: "HALL_ENTRY", name: "Leggenda Immortale", desc: "Entra nell'Eternal Hall per la prima volta.", icon: "🏛️", rarity: 'rare', category: "meta", hidden: false },
   "PARADOX_UNLOCKED": { id: "PARADOX_UNLOCKED", name: "Occhio del Paradosso", desc: "Sblocca la modalità Paradox.", icon: "👁️", rarity: 'epic', category: "meta", hidden: false },
   "WORLD_SHIFT_ACTIVE": { id: "WORLD_SHIFT_ACTIVE", name: "Tessitore di Mondi", desc: "Vinci con 3+ World Shift attivi.", icon: "🌀", rarity: 'rare', category: "meta", hidden: false },
   "CHRONICLE_IMPORT": { id: "CHRONICLE_IMPORT", name: "Eco dal Passato", desc: "Importa una cronaca da un altro mondo.", icon: "📜", rarity: 'common', category: "meta", hidden: false },
+  "LEGACY_BUILDER": { id: "LEGACY_BUILDER", name: "Costruttore di Eredità", desc: "Colleziona 10 voci nell'Eternal Hall.", icon: "📚", rarity: 'epic', category: "meta", hidden: false },
+  "SHIFT_MASTER": { id: "SHIFT_MASTER", name: "Signore del Mutamento", desc: "Vinci con tutti i World Shift possibili attivi contemporaneamente.", icon: "🌌", rarity: 'god', category: "meta", hidden: false },
+  "CHRONICLE_WRITER": { id: "CHRONICLE_WRITER", name: "Scriba dell'Abisso", desc: "Esporta la tua prima Cronaca.", icon: "✍️", rarity: 'common', category: "meta", hidden: false },
+  "ANCIENT_ECHO": { id: "ANCIENT_ECHO", name: "Eco Antica", desc: "Importa una Cronaca con rango 'S'.", icon: "🔱", rarity: 'rare', category: "meta", hidden: false },
 
-  // SECRET / DISCOVERY
-  "SECRET_42": { id: "SECRET_42", name: "La Risposta", desc: "Hai trovato la risposta a tutto.", icon: "🌌", rarity: 'epic', category: "secret", hidden: true },
-  "WEIRD_LUCK": { id: "WEIRD_LUCK", name: "Baciato dalla Sorte", desc: "Trova 3 Assi nella stessa stanza.", icon: "🍀", rarity: 'rare', category: "secret", hidden: true },
-  "FULL_ROOM_MONSTERS": { id: "FULL_ROOM_MONSTERS", name: "Circondato", desc: "Entra in una stanza con 4 mostri.", icon: "👹", rarity: 'common', category: "secret", hidden: true },
-  "EMPTY_HANDS": { id: "EMPTY_HANDS", name: "A Mani Nude", desc: "Sconfiggi un mostro di valore 10+ senza arma.", icon: "👊", rarity: 'epic', category: "secret", hidden: true },
-
-  // ALTAR / META PROGRESSION
+  // 11. ALTAR / META PROGRESSION
   "ALTAR_FIRST": { id: "ALTAR_FIRST", name: "Primo Sacrificio", desc: "Sblocca il tuo primo nodo nell'Altare.", icon: "🕯️", rarity: 'common', category: "altar", hidden: false },
   "ALTAR_BRANCH_FULL": { id: "ALTAR_BRANCH_FULL", name: "Maestro di un Ramo", desc: "Sblocca tutti i nodi di un singolo ramo.", icon: "📜", rarity: 'rare', category: "altar", hidden: false },
   "ALTAR_ALL_FULL": { id: "ALTAR_ALL_FULL", name: "Onniscienza Oscura", desc: "Sblocca tutti i nodi dell'Altare.", icon: "🌌", rarity: 'god', category: "altar", hidden: false },
   "SPEND_SIGILS_50": { id: "SPEND_SIGILS_50", name: "Generosità Abissale", desc: "Spendi un totale di 50 Sigilli dell'Abisso.", icon: "💰", rarity: 'epic', category: "altar", hidden: false },
   "COLLECT_SIGILS_100": { id: "COLLECT_SIGILS_100", name: "Accumulatore di Anime", desc: "Possiedi 100 Sigilli contemporaneamente.", icon: "💎", rarity: 'god', category: "altar", hidden: false },
+  "SIGIL_HOARDER": { id: "SIGIL_HOARDER", name: "Tesoro dell'Abisso", desc: "Accumula un totale di 200 Sigilli posseduti.", icon: "🏦", rarity: 'god', category: "altar", hidden: false },
+  "ALTAR_DIVERSITY": { id: "ALTAR_DIVERSITY", name: "Poliedrico", desc: "Sblocca almeno un nodo in ogni ramo dell'Altare.", icon: "🌈", rarity: 'rare', category: "altar", hidden: false },
+  "SACRIFICIAL_LAMB": { id: "SACRIFICIAL_LAMB", name: "Agnello Sacrificale", desc: "Spendi 20 Sigilli in una singola sessione all'Altare.", icon: "🐑", rarity: 'rare', category: "altar", hidden: false },
+
+  // 12. SECRET / HIDDEN / DISCOVERY
+  "SECRET_42": { id: "SECRET_42", name: "La Risposta", desc: "Hai trovato la risposta a tutto.", icon: "🌌", rarity: 'epic', category: "secret", hidden: true },
+  "WEIRD_LUCK": { id: "WEIRD_LUCK", name: "Baciato dalla Sorte", desc: "Trova 3 Assi nella stessa stanza.", icon: "🍀", rarity: 'rare', category: "secret", hidden: true },
+  "FULL_ROOM_MONSTERS": { id: "FULL_ROOM_MONSTERS", name: "Circondato", desc: "Entra in una stanza con 4 mostri.", icon: "👹", rarity: 'common', category: "secret", hidden: true },
+  "EMPTY_HANDS": { id: "EMPTY_HANDS", name: "A Mani Nude", desc: "Sconfiggi un mostro di valore 10+ senza arma.", icon: "👊", rarity: 'epic', category: "secret", hidden: true },
+  "ABYSS_GAZER": { id: "ABYSS_GAZER", name: "Sguardo nell'Abisso", desc: "Resta nel menu principale per 5 minuti consecutivi.", icon: "👁️", rarity: 'common', category: "secret", hidden: true },
+  "CLICK_MANIAC": { id: "CLICK_MANIAC", name: "Tic Nervoso", desc: "Clicca sull'avatar del tuo eroe 50 volte.", icon: "🖱️", rarity: 'common', category: "secret", hidden: true },
+  "DEVELOPER_THANKS": { id: "DEVELOPER_THANKS", name: "Riconoscenza", desc: "Trova i crediti nascosti del gioco.", icon: "🙏", rarity: 'rare', category: "secret", hidden: true },
+  "PARADOX_LOST": { id: "PARADOX_LOST", name: "Paradosso Perduto", desc: "Perdi una partita Paradox nella primissima stanza.", icon: "📉", rarity: 'common', category: "secret", hidden: true },
+  "OVERSTACK": { id: "OVERSTACK", name: "Spreco Vitale", desc: "Tenta di curarti quando sei già al massimo della vita.", icon: "💊", rarity: 'common', category: "secret", hidden: true },
+  "BROKEN_DREAM": { id: "BROKEN_DREAM", name: "Sogno Infranto", desc: "Subisci la rottura di un'arma contro l'ultimo mostro della partita.", icon: "💔", rarity: 'rare', category: "secret", hidden: true },
 };
 
 export const SIGIL_REWARDS: Record<string, number> = {

@@ -157,6 +157,7 @@ export interface SessionStats {
   potionsUsed: number;
   retreatsUsed: number;
   minHealthReached: number;
+  maxHealthReached: number;
   weaponsBroken: number;
   lastDurabilityKill: boolean;
   roomMonstersCount: number;
@@ -164,6 +165,22 @@ export interface SessionStats {
   noWeaponKills10Plus: number;
   lowHPStreak: number;
   maxLowHPStreak: number;
+  monstersDefeatedWithoutHealing: number;
+  weaponsEquippedInRoom: number;
+  potionsUsedInRoom: number;
+  turnsInRoom: number;
+  monstersOfValue13PlusDefeated: number;
+  currentRoomsWithoutDamage: number;
+  maxRoomsWithoutDamage: number;
+  currentWeaponRooms: number;
+  maxWeaponRooms: number;
+  maxWeaponValueUsed: number;
+  minWeaponValueUsed: number;
+  hasEquippedWeapon: boolean;
+  potionsFoundInRoom: number;
+  reached1HPBeforeRoom5: boolean;
+  monstersInRun: number; // Total monsters spawned
+  damageTakenInRoom: number;
 }
 
 export interface GameState {
