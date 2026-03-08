@@ -11,10 +11,11 @@ interface SaveModalProps {
   onClose: () => void;
   onSave: (slotIdx: number) => void;
   onLoad: (save: SignedSave) => void;
+  onDelete: (difficulty: Difficulty, slotIdx: number) => void;
   onUnlockAltar: (nodeId: string) => void;
 }
 
-const SaveModal: React.FC<SaveModalProps> = ({ activeProfile, gameState, onClose, onSave, onLoad, onUnlockAltar }) => {
+const SaveModal: React.FC<SaveModalProps> = ({ activeProfile, gameState, onClose, onSave, onLoad, onDelete, onUnlockAltar }) => {
   const [tab, setTab] = useState<'saves' | 'achievements' | 'altar'>('saves');
   const isPlaying = gameState.status === 'playing';
   const isGod = gameState.difficulty === 'god';
@@ -90,6 +91,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ activeProfile, gameState, onClose
                         difficulty={diff} 
                         slotIdx={idx} 
                         onLoad={onLoad} 
+                        onDelete={onDelete}
                       />
                     ))
                   ))}
@@ -111,7 +113,7 @@ const SaveModal: React.FC<SaveModalProps> = ({ activeProfile, gameState, onClose
   );
 };
 
-const SaveSlotCard: React.FC<{ save: SignedSave | null, difficulty: Difficulty, slotIdx: number, onLoad: (s: SignedSave) => void }> = ({ save, difficulty, slotIdx, onLoad }) => {
+const SaveSlotCard: React.FC<{ save: SignedSave | null, difficulty: Difficulty, slotIdx: number, onLoad: (s: SignedSave) => void, onDelete: (d: Difficulty, s: number) => void }> = ({ save, difficulty, slotIdx, onLoad, onDelete }) => {
   const config = DIFFICULTY_CONFIG[difficulty];
   
   if (!save) {
@@ -141,12 +143,21 @@ const SaveSlotCard: React.FC<{ save: SignedSave | null, difficulty: Difficulty, 
         </div>
       </div>
 
-      <button 
-        onClick={() => onLoad(save)}
-        className="w-full py-3 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
-      >
-        Carica Spedizione
-      </button>
+      <div className="flex gap-2">
+        <button 
+          onClick={() => onLoad(save)}
+          className="flex-1 py-3 bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+        >
+          Carica Spedizione
+        </button>
+        <button 
+          onClick={() => { if(window.confirm("Eliminare definitivamente questo salvataggio?")) onDelete(difficulty, slotIdx); }}
+          className="px-4 py-3 bg-red-950/20 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/20 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all"
+          title="Elimina Salvataggio"
+        >
+          ✕
+        </button>
+      </div>
     </div>
   );
 };

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GameState, Card, ProfilesData, UserProfile, Difficulty, ProfileStats, SignedSave, ChronicleEntry, WorldShift, WorldState } from './types';
 import { createDeck, getBackgroundByRoom, GAME_RULES, DIFFICULTY_CONFIG, ACHIEVEMENTS, DifficultyRules, getCardType, ETERNAL_VARIANTS, SIGIL_REWARDS, ALTAR_NODES } from './constants';
 import { SaveManager } from './SaveManager';
@@ -64,6 +64,7 @@ const App: React.FC = () => {
 
   const [isBooting, setIsBooting] = useState(false);
   const [isFleeing, setIsFleeing] = useState(false);
+  const finalizedRunRef = useRef<number | null>(null);
   const [gameState, setGameState] = useState<GameState>({
     status: "start", difficulty: "normal", health: GAME_RULES.INITIAL_HEALTH, maxHealth: GAME_RULES.INITIAL_HEALTH,
     equippedWeapon: null, weaponDurability: null, deck: [], room: [], selectedCardId: null, fugaDisponibile: true,
@@ -97,13 +98,21 @@ const App: React.FC = () => {
   }, [activeProfile?.id, view]);
 
   useEffect(() => {
-    const dataToSave = { ...profilesData };
+    // Deep copy profiles to avoid mutation
+    const dataToSave = { 
+      ...profilesData, 
+      profiles: Object.keys(profilesData.profiles).reduce((acc, id) => {
+        acc[id] = { ...profilesData.profiles[id] };
+        return acc;
+      }, {} as Record<string, UserProfile>)
+    };
+    
     if ((gameState.difficulty === 'god' || gameState.difficulty === 'question') && activeProfile) {
        const p = dataToSave.profiles[activeProfile.id];
        if (p) p.currentGame = null;
     }
     localStorage.setItem(GAME_RULES.PROFILES_KEY, JSON.stringify(dataToSave));
-  }, [profilesData, gameState.difficulty]);
+  }, [profilesData, gameState.difficulty, activeProfile]);
 
   const updateActiveProfile = (updates: Partial<UserProfile>) => {
     if (!profilesData.activeProfileId) return;
@@ -127,6 +136,70 @@ const App: React.FC = () => {
     setProfilesData(prev => ({ ...prev, activeProfileId: id }));
     setIsBooting(true);
     setView('main-menu');
+  };
+
+  const handleExportProfile = (id: string) => {
+    const profile = profilesData.profiles[id];
+    if (!profile) return;
+
+    const data = JSON.stringify(profile, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const date = new Date().toISOString().split('T')[0];
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `scoundrel-profile-${profile.nickname}-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    addToast("Profilo esportato con successo.", "success");
+  };
+
+  const handleDeleteProfile = (profileId: string) => {
+    const confirm1 = window.confirm("Sei sicuro di voler eliminare questo profilo? Tutti i dati andranno definitivamente persi!");
+    if (!confirm1) return;
+
+    const confirm2 = window.confirm("Sei davvero SICURO, SICURO, SICURO?!?!?!? Che dopo non venire a lamentarti che hai perso i dati! Confermi?");
+    if (!confirm2) return;
+
+    setProfilesData(prev => {
+      const updatedProfiles = { ...prev.profiles };
+      delete updatedProfiles[profileId];
+
+      const remainingIds = Object.keys(updatedProfiles);
+
+      return {
+        ...prev,
+        activeProfileId:
+          prev.activeProfileId === profileId
+            ? (remainingIds[0] ?? null)
+            : prev.activeProfileId,
+        profiles: updatedProfiles,
+      };
+    });
+    addToast("Profilo eliminato.", "info");
+  };
+
+  const handleImportProfile = (jsonStr: string) => {
+    try {
+      const imported = JSON.parse(jsonStr) as UserProfile;
+      if (!imported.id || !imported.nickname || !imported.stats) throw new Error("Invalid format");
+      
+      // Check if profile already exists
+      if (profilesData.profiles[imported.id]) {
+        if (!window.confirm("Un profilo con questo ID esiste già. Sovrascrivere?")) return;
+      }
+
+      setProfilesData(prev => ({
+        ...prev,
+        profiles: { ...prev.profiles, [imported.id]: imported }
+      }));
+      addToast("Profilo importato con successo.", "success");
+    } catch (e) {
+      console.error("Import error:", e);
+      addToast("Errore durante l'importazione. File non valido.", "error");
+    }
   };
 
   const handleCreateProfile = (name: string, nickname: string, heroClass: string, avatar: string) => {
@@ -227,7 +300,9 @@ const App: React.FC = () => {
   };
 
   const finalizeStats = async (finalState: GameState) => {
-    if (!activeProfile) return;
+    if (!activeProfile || finalizedRunRef.current === finalState.startTime) return;
+    finalizedRunRef.current = finalState.startTime;
+    
     const diff: any = finalState.difficulty;
     
     const unlockAchievement = (p: UserProfile, id: string) => {
@@ -569,6 +644,14 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteSave = (difficulty: Difficulty, slotIdx: number) => {
+    if (!activeProfile) return;
+    const updatedSaves = { ...activeProfile.saves };
+    updatedSaves[difficulty][slotIdx] = null;
+    updateActiveProfile({ saves: updatedSaves });
+    addToast(`Salvataggio nello Slot ${slotIdx + 1} eliminato.`, "info");
+  };
+
   const handleSelectVariant = (variantId: string | null) => {
     if (!activeProfile) return;
     const heroClass = activeProfile.heroClass;
@@ -637,11 +720,14 @@ const App: React.FC = () => {
       )}
 
       {view === 'profile-selection' ? (
-        <ProfileManagerUI profiles={profilesData.profiles} onSelect={handleSelectProfile} onCreate={handleCreateProfile} onDelete={(id) => setProfilesData(prev => {
-          const newProfiles = { ...prev.profiles };
-          delete newProfiles[id];
-          return { ...prev, profiles: newProfiles, activeProfileId: prev.activeProfileId === id ? null : prev.activeProfileId };
-        })} onImport={() => {}} onExport={() => {}} />
+        <ProfileManagerUI 
+          profiles={profilesData.profiles} 
+          onSelect={handleSelectProfile} 
+          onCreate={handleCreateProfile} 
+          onDelete={handleDeleteProfile}
+          onImport={handleImportProfile} 
+          onExport={handleExportProfile} 
+        />
       ) : view === 'difficulty-selection' ? (
         <DifficultySelector activeProfile={activeProfile!} onSelect={startNewGame} onCancel={() => setView('main-menu')} />
       ) : view === 'main-menu' ? (
@@ -727,6 +813,7 @@ const App: React.FC = () => {
           onClose={() => setShowSave(false)} 
           onSave={handleManualSave} 
           onLoad={handleLoadSave} 
+          onDelete={handleDeleteSave}
           onUnlockAltar={handleUnlockAltar}
         />
       )}

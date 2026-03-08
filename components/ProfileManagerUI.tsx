@@ -141,7 +141,7 @@ const ProfileManagerUI: React.FC<ProfileManagerUIProps> = ({
                   <div className="grid grid-cols-2 gap-2">
                     <button onClick={() => onExport(p.id)} className="py-2 bg-slate-800 text-[8px] uppercase font-black text-slate-400 rounded-lg hover:text-white">Export</button>
                     <button 
-                      onClick={() => { if(window.confirm("Eliminare definitivamente questo profilo e i suoi progressi?")) onDelete(p.id); }}
+                      onClick={(e) => { e.stopPropagation(); onDelete(p.id); }}
                       className="py-2 bg-red-950/20 text-[8px] uppercase font-black text-red-500 rounded-lg border border-red-500/20 hover:bg-red-500 hover:text-white"
                     >
                       Elimina
